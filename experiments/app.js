@@ -65,7 +65,7 @@ io.on('connection', function (socket) {
 
 var serveFile = function(req, res) {
   var fileName = req.params[0];
-  console.log('\t :: Express :: file requested: ' + fileName);
+  //console.log('\t :: Express :: file requested: ' + fileName);
   return res.sendFile(fileName, {root: __dirname});
 };
 
@@ -83,10 +83,11 @@ var UUID = function() {
 };
 
 function sendStim(socket, data) {
+  console.log("I AM ABOUT TO SEND REQUEST TO DATABASE");
   sendPostRequest('http://localhost:6001/db/getstims', {
     json: {
       dbname: 'stimuli',
-      colname: 'svg_annotation_sketchpad_basic_allcats',
+      colname: 'semantic_parts_graphical_conventions',
       numTrials: 1,
       gameid: data.gameID
     }

@@ -6,7 +6,7 @@ Index(['Unnamed: 0', 'gameID', 'trialNum', 'condition', 'target', 'category',
        'numCurvesPerStroke', 'timedOut', 'png', 'svgString', 'subset',
        'low_acc', 'category_subset', 'category_subset_condition', 'crazy',
        'recog_id', 'target_shapenet', 'distractors', 'distractors_shapenet',
-       'target_url'],
+       'target_url', 'labels'],
       dtype='object')
 */
 
@@ -81,11 +81,6 @@ jsPsych.plugins['part_annotation'] = (function () {
       style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%\
       </div>\
       </div>\
-      <div class="row" style = "float:bottom; display:table;x">\
-      <img src='+ trial.renders[0] + ' style= "border:2px solid #000000;height:20%; width:20%;">\
-      <img src='+ trial.renders[1] + ' style= "border:2px solid #000000;height:20%; width:20%;">\
-      <img src='+ trial.renders[2] + ' style= "border:2px solid #000000;height:20%; width:20%;">\
-      <img src='+ trial.renders[3] + ' style= "border:2px solid #000000;height:20%; width:20%;">\
       </div>\
       </div> \
       <div id="dialog-form" title="Enter Part Label">\
@@ -111,14 +106,13 @@ jsPsych.plugins['part_annotation'] = (function () {
       );
 
       paper.setup('myCanvas');
-      console.log(trial.parts);
       partList = trial.parts.toString().split(',');
 
       //TODO, change this instCountArr so that it tracks of sub_parts as well
       instCountArr = Array.apply(null, Array(partList.length + 2)).map(Number.prototype.valueOf, 0);
 
       console.log("Initialize instCountArr in setTimeOut:", instCountArr)
-      listgen();
+      multi_listgen();
       menugen();
       display();
     }, 1000);
@@ -140,8 +134,8 @@ jsPsych.plugins['part_annotation'] = (function () {
         aID: turkInfo.assignmentId,
 
         //TODO, change the db and collection name
-        dbname: 'semantic_parts',
-        colname: 'sketchpad_basic',
+        dbname: 'stimuli',
+        colname: 'semantic_parts_graphical_conventions',
 
         iterationName: 'testing',
         bonus: totalBonus,
@@ -184,37 +178,39 @@ jsPsych.plugins['part_annotation'] = (function () {
     };
 
     //function to create one label, instCount row and append to the List and InstCount
-    function create_label(key){
+    function create_label(key) {
       var li;
       var inst;
+
       //If the current label has no sub_parts
-      if (trial.parts[key].length == 0){
+      if ((!(key in trial.parts)) || trial.parts[key].length == 0) {
         li = $("<li><div>" + key + "</div></li>");
         inst = $("<li><div id='" + instCountInd + "'>" + instCountArr[instCountInd] + "</div></li>");
       }
       //if the current label has sub_parts
-      else{
-        li = $("<li class='dropdown'> <div>" + key + "<i class='fa fa-caret-down'></i> </div></li>");
+      else {
+        li = $("<li class='dropdown-btn' id = 'dropdown-btn-" + key + "'> <div>" + key + "<i class='fa fa-caret-down'></i> </div></li>");
         inst = $("<li><div id='" + instCountInd + "'>" + instCountArr[instCountInd] + "</div></li>");
       }
       instCountInd++;
       setColor(li);
       li.appendTo("#List");
       inst.appendTo("#InstCount");
-      if (trial.parts[key].length > 0){
-        //Sibiling wrapper
-        var wrapper = $("<div class='dropdown-container' id = 'dropdown-container-"+ key +"'></div>");
+
+      //Append the drop down container
+      if (((key in trial.parts)) && (trial.parts[key].length != 0)) {
+        var wrapper = $("<div class='dropdown-container' id = 'dropdown-container-" + key + "'></div>");
         wrapper.appendTo("#List");
       }
     }
 
-    function create_sub_label(key, sub_part){
+    function create_sub_label(key, sub_part) {
       var li = $("<li><div>" + sub_part + "</div></li>");
       var inst = $("<li><div id='" + instCountInd + "'>" + instCountArr[instCountInd] + "</div></li>");
 
       instCountInd++;
       setColor(li);
-      li.appendTo("#dropdown-container-"+ key);
+      li.appendTo("#dropdown-container-" + key);
       inst.appendTo("#InstCount");
     }
 
@@ -243,7 +239,6 @@ jsPsych.plugins['part_annotation'] = (function () {
         "opacity": Math.random() + 0.5,
         "transform": "rotate(" + Math.random() * 360 + "deg)"
       }).appendTo('.wrapper');
-
       drop(i);
     }
 
@@ -258,12 +253,12 @@ jsPsych.plugins['part_annotation'] = (function () {
     }
 
     //Behavior of clicking the next button, end_trail got called
-    function nextButton_callBack(){
+    function nextButton_callBack() {
       if (c == pathArray.length && sameColorCheck(pathArray) == false) {
         var dataURL = document.getElementById('myCanvas').toDataURL();
         dataURL = dataURL.replace('data:image/png;base64,', '');
         var category = trial.category;
-        
+
         //Add those strokes not labeled?
         _.forEach(pathArray, function (p) {
           if (p.alreadyClicked == false) {
@@ -551,345 +546,39 @@ jsPsych.plugins['part_annotation'] = (function () {
       $("#InstCount").empty();
 
       var keys = Object.keys(trial.parts);
-      console.log(keys);
       _.forEach(keys, function (key) {
         create_label(key);
 
         //Add sub_parts
-        _.forEach(trial.parts[key], function(sub_part){
+        _.forEach(trial.parts[key], function (sub_part) {
           create_sub_label(key, sub_part);
         });
       });
+
       var extra_labels = ["I can't tell", "Other"];
-      _.forEach(extra_labels, function(key){
+      _.forEach(extra_labels, function (key) {
         create_label(key);
       });
 
       // Add click listener
-      var dropdown = document.getElementsByClassName("dropdown");
+      var dropdown = document.getElementsByClassName("dropdown-btn");
       var i;
-
       for (i = 0; i < dropdown.length; i++) {
-        dropdown[i].addEventListener("click", function() {
-        this.classList.toggle("active");
-        var dropdownContent = this.nextElementSibling;
-        if (dropdownContent.style.display === "block") {
-        dropdownContent.style.display = "none";
-        } else {
-        dropdownContent.style.display = "block";
-        }
+        //Expand the children sub_parts
+        dropdown[i].addEventListener("click", function () {
+          this.classList.toggle("active");
+          var dropdownContent = this.nextElementSibling;
+          if (dropdownContent.style.display === "block") {
+            dropdownContent.style.display = "none";
+          } else {
+            dropdownContent.style.display = "block";
+          }
         });
       }
     }
 
-    //Generating the list of par labels 
-    function listgen() {
-      colNo = 0
-      instCountInd = 0
-
-      $("#List").empty();
-      $("#InstCount").empty();
-      var partList = trial.parts.toString().split(',');
-      console.log(partList);
-      _.forEach(partList, function (p) {
-        var li = $("<li><div>" + p + "</div></li>");
-        console.log("hey is this fine?", instCountArr)
-        var inst = $("<li><div id='" + instCountInd + "'>" + instCountArr[instCountInd] + "</div></li>");
-        instCountInd++
-        setColor(li);
-        li.appendTo("#List");
-        inst.appendTo("#InstCount");
-
-      });
-      var unk = $("<li><div>" + "I can't tell" + "</div></li>")
-      var inst = $("<li><div id='" + instCountInd + "'>" + instCountArr[instCountInd] + "</div></li>");
-      instCountInd++
-      setColor(unk);
-      unk.appendTo("#List");
-      inst.appendTo("#InstCount");
-
-      var other = $("<li><div>" + "Other" + "</div></li>");
-      var inst = $("<li><div id='" + instCountInd + "'>" + instCountArr[instCountInd] + "</div></li>");
-      //instCountInd++
-      setColor(other);
-      other.appendTo("#List");
-      inst.appendTo("#InstCount");
-    }
-    
-
-    //Function for creating menu and free response box widgets from the list created by listgen()
-    function menugen() {
-      //disabling enter key submit 
-      $("#dialog-form").submit(function (event) {
-        event.preventDefault();
-      });
-      $("#InstCount").menu({
-        disabled: true,
-      })
-
-      $("#List").menu({
-        disabled: true,
-        modal: true,
-        select: function (event, ui) {
-          clickable = true;
-          //Refreshing the menu on each click;
-          listgen();
-          $("#List").menu("refresh");
-          $("#InstCount").menu("refresh");
-          //Retrieving text element of selected option
-          var text = ui.item.text();
-
-          if (text != 'Other' && text != "I can't tell") {
-            var loc;
-            for (var i = 0; i < partList.length; i++) {
-              if (text == partList[i]) {
-                loc = i;
-              }
-            }
-
-            var tempBouts = []
-            var tempMaxBout = 0
-            var boutCount = 0
-            var numRelabeled = 0
-
-
-            _.forEach(dict, function (p) {
-              if (p.label == text) {
-                //tempdict[boutCount]=p
-                tempBouts[boutCount] = p.partBoutNum
-                boutCount = boutCount + 1
-              }
-            })
-            //console.log(tempBouts)
-
-            tempMaxBout = Math.max.apply(Math, tempBouts)
-            //console.log(tempMaxBout)
-
-
-            partBoutNum = tempMaxBout + 1
-            if (partBoutNum < 0) {
-              partBoutNum = 0
-            }
-            instCountArr[loc] = partBoutNum + 1
-            listgen();
-            $("#List").menu("refresh");
-            $("#InstCount").menu("refresh")
-
-            //console.log(partBoutNum)
-            console.log("array of highlit strokes on menu click", selectedArray)
-
-            _.forEach(selectedArray, function (p) {
-              var toRemove = false
-              var removeLoc
-              p.highlit = false;
-              p.sendToBack();
-              for (var i = 0; i < dict.length; i++) {
-                if (p.strokeNum == dict[i].cumulativeSplineNum) {
-                  toRemove = true
-                  removeLoc = i
-                }
-
-              }
-              if (toRemove == false) {
-
-                //Setting stroke color to the color of the menu item
-                p.strokeColor = ui.item.css("background-color");
-                p.alreadyClicked = true;
-
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                numLitStrokes = 0;
-
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": text, "strokeColor": p.strokeColor, "timeClicked": timeClicked, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum, "boutNum": bout, "partBoutNum": partBoutNum
-                });
-
-                p.strokeWidth = 5;
-              } else if (toRemove == true) {
-                dict.splice(removeLoc, 1)
-                p.strokeColor = ui.item.css("background-color");
-                p.alreadyClicked = true;
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                numLitStrokes = 0;
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": text, "strokeColor": p.strokeColor, "timeClicked": timeClicked, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum, "boutNum": bout, "partBoutNum": partBoutNum
-                });
-                p.strokeWidth = 5;
-                numRelabeled++;
-
-              }
-            });
-
-            bout = bout + 1;
-
-            c = c + selectedArray.length - numRelabeled;
-            //Progress marker updates and checking for whether confetti should fall
-            if (c == pathArray.length) {
-              if (trial.training == false) {
-                totalBonus = totalBonus + 0.02;
-              }
-              for (var i = 0; i < confettiCount; i++) {
-                create(i);
-              }
-            }
-            $(".progress-bar").css("width", (c / pathArray.length) * 100 + '%');
-            $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
-            $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
-
-            if (trial.training == false) {
-              Bonus = Math.round(c * 0.002 * 1000) / 1000;
-              $('#bonusMeter').html("Bonus: $ " + (Bonus + totalBonus).toFixed(3));
-            }
-
-            for (var i = 0; i < pathArray.length; i++) {
-              if (pathArray[i].alreadyClicked == false) {
-                pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
-              }
-            }
-
-            selectedArray = [];
-          }
-          else if (text == 'Other') {
-
-            //Calling free entry box
-            otherColor = ui.item.css("background-color");
-            $("#dialog-form").dialog("open");
-          } else if (text == "I can't tell") {
-            var loc = partList.length
-
-            var tempBouts = []
-            var tempMaxBout = 0
-            var boutCount = 0
-            var numRelabeled = 0
-
-
-            _.forEach(dict, function (p) {
-              if (p.label == "unknown") {
-                //tempdict[boutCount]=p
-                tempBouts[boutCount] = p.partBoutNum
-                boutCount = boutCount + 1
-              }
-            })
-            //console.log(tempBouts)
-
-            tempMaxBout = Math.max.apply(Math, tempBouts)
-            //console.log(tempMaxBout)
-
-
-            partBoutNum = tempMaxBout + 1
-            if (partBoutNum < 0) {
-              partBoutNum = 0
-            }
-            instCountArr[loc] = partBoutNum + 1
-            listgen();
-            $("#List").menu("refresh");
-            $("#InstCount").menu("refresh")
-
-
-
-
-
-            _.forEach(selectedArray, function (p) {
-              p.highlit = false;
-              p.sendToBack();
-              var toRemove = false
-              var removeLoc
-
-              for (var i = 0; i < dict.length; i++) {
-                if (p.strokeNum == dict[i].cumulativeSplineNum) {
-                  toRemove = true
-                  removeLoc = i
-                }
-              }
-
-              if (toRemove == false) {
-
-
-                //Setting stroke color to the color of the menu item
-                p.strokeColor = ui.item.css("background-color");
-                p.alreadyClicked = true;
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                numLitStrokes = 0;
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": "unknown",
-                  "strokeColor": p.strokeColor,
-                  "timeClicked": timeClicked,
-                  "timeLabeled": Date.now(),
-                  "cumulativeSplineNum": p.strokeNum,
-                  "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum,
-                  "boutNum": bout,
-                  "partBoutNum": partBoutNum
-                });
-                console.log(dict);
-                p.strokeWidth = 5;
-              } else if (toRemove == true) {
-                dict.splice(removeLoc, 1)
-                p.strokeColor = ui.item.css("background-color");
-                p.alreadyClicked = true;
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                numLitStrokes = 0;
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": "unknown", "strokeColor": p.strokeColor, "timeClicked": timeClicked, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum, "boutNum": bout, "partBoutNum": partBoutNum
-                });
-                p.strokeWidth = 5;
-                numRelabeled++
-                //selectedArray.splice(selectedArray.indexOf(p),1)
-
-              }
-
-            });
-            bout = bout + 1
-
-            c = c + selectedArray.length - numRelabeled;
-            if (c == pathArray.length) {
-              if (trial.training == false) {
-                totalBonus = totalBonus + 0.02;
-              }
-              for (var i = 0; i < confettiCount; i++) {
-                create(i);
-              }
-            }
-            //Progress marker updates and checking for whether confetti should fall
-            $(".progress-bar").css("width", (c / pathArray.length) * 100 + '%');
-            $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
-            $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
-
-            if (trial.training == false) {
-              Bonus = Math.round(c * 0.002 * 1000) / 1000;
-              $('#bonusMeter').html("Bonus: $ " + (Bonus + totalBonus).toFixed(3));
-            }
-
-            for (var i = 0; i < pathArray.length; i++) {
-              if (pathArray[i].alreadyClicked == false) {
-                pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
-              }
-            }
-
-
-            selectedArray = [];
-
-          }
-          //Closing menu after selection
-          $("#List").menu("disable");
-
-
-        }
-      });
-
-
+    function comfirmDialog() {
       //dialog form for checking if the participant really wants to progress when all strokes not labeled
-
       $("#confirmContinue").dialog({
         autoOpen: false,
         height: 400,
@@ -928,14 +617,13 @@ jsPsych.plugins['part_annotation'] = (function () {
             $("#dialog-form").dialog("destroy");
             $("#confirmContinue").dialog("destroy");
             end_trial(results);
-
-
           }
         }
-      })
+      });
+    }
 
+    function free_response() {
       //Free response dialog box 
-
       $("#dialog-form").dialog({
         autoOpen: false,
         height: 400,
@@ -965,43 +653,37 @@ jsPsych.plugins['part_annotation'] = (function () {
 
               }
             })
-            //unclickable = false;
+
             $("#dialog-form").dialog("close");
-            //$("#List").menu("enable");
+
             numLitStrokes = 0;
-            selectedArray = []
+            selectedArray = [];
           },
 
           Submit: function (ui) {
-            numOthers++
-            var loc = partList.length + 1
+            numOthers++;
+            var loc = partList.length + 1;
 
+            var tempBouts = [];
+            var tempMaxBout = 0;
+            var boutCount = 0;
+            var numRelabeled = 0;
 
-            var tempBouts = []
-            var tempMaxBout = 0
-            var boutCount = 0
-            var numRelabeled = 0
-
-
-
-            console.log("array of highlit strokes on menu click", selectedArray)
+            console.log("array of highlit strokes on menu click", selectedArray);
             var UI = $("#partName").val();
             if (UI == "") {
-              UI = "unknown"
+              UI = "unknown";
             }
 
             _.forEach(dict, function (p) {
               if (p.label == UI) {
                 //tempdict[boutCount]=p
-                tempBouts[boutCount] = p.partBoutNum
-                boutCount = boutCount + 1
+                tempBouts[boutCount] = p.partBoutNum;
+                boutCount = boutCount + 1;
               }
             })
-            //console.log(tempBouts)
 
             tempMaxBout = Math.max.apply(Math, tempBouts)
-            //console.log(tempMaxBout)
-
 
             partBoutNum = tempMaxBout + 1
             if (partBoutNum < 0) {
@@ -1009,7 +691,7 @@ jsPsych.plugins['part_annotation'] = (function () {
             }
             //console.log(partBoutNum)
             instCountArr[loc] = numOthers
-            listgen();
+            multi_listgen();
             $("#List").menu("refresh");
             $("#InstCount").menu("refresh")
 
@@ -1036,9 +718,6 @@ jsPsych.plugins['part_annotation'] = (function () {
                 svgstring = p.exportSVG({ asString: true });
                 var start = svgstring.indexOf('d="') + 3;
                 numLitStrokes = 0;
-
-
-
 
                 dict.push({
                   "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
@@ -1106,6 +785,261 @@ jsPsych.plugins['part_annotation'] = (function () {
           }
         }
       });
+    }
+
+
+    //Function for creating menu and free response box widgets from the list created by listgen()
+    function menugen() {
+      //disabling enter key submit 
+      $("#dialog-form").submit(function (event) {
+        event.preventDefault();
+      });
+      $("#InstCount").menu({
+        disabled: true,
+      });
+
+      $("#List").menu({
+        disabled: true,
+        modal: true,
+        select: function (event, ui) {
+          clickable = true;
+          //Refreshing the menu on each click;
+
+          multi_listgen();
+          $("#List").menu("refresh");
+          $("#InstCount").menu("refresh");
+
+          //Retrieving text element of selected option, first level
+          var text = ui.item.text();
+
+          if (text != "Other" && text != "I can't tell") {
+            var loc;
+            for (var i = 0; i < Object.keys(trial.parts).length; i++) {
+              if (text == partList[i]) {
+                loc = i;
+              }
+            }
+            var tempBouts = [];
+            var tempMaxBout = 0;
+            var boutCount = 0;
+            var numRelabeled = 0;
+
+            _.forEach(dict, function (p) {
+              if (p.label == text) {
+                tempBouts[boutCount] = p.partBoutNum;
+                boutCount = boutCount + 1;
+              }
+            });
+            tempMaxBout = Math.max.apply(Math, tempBouts);
+
+            partBoutNum = tempMaxBout + 1;
+            if (partBoutNum < 0) {
+              partBoutNum = 0;
+            }
+            instCountArr[loc] = partBoutNum + 1;
+            multi_listgen();
+            $("#List").menu("refresh");
+            $("#InstCount").menu("refresh");
+
+            console.log("array of highlit strokes on menu click", selectedArray)
+
+            //????
+            _.forEach(selectedArray, function (p) {
+              var toRemove = false;
+              var removeLoc;
+              p.highlit = false;
+              p.sendToBack();
+              for (var i = 0; i < dict.length; i++) {
+                if (p.strokeNum == dict[i].cumulativeSplineNum) {
+                  toRemove = true;
+                  removeLoc = i;
+                }
+              }
+
+              if (toRemove == false) {
+                //Setting stroke color to the color of the menu item
+                p.strokeColor = ui.item.css("background-color");
+                p.alreadyClicked = true;
+
+                svgstring = p.exportSVG({ asString: true });
+                var start = svgstring.indexOf('d="') + 3;
+                numLitStrokes = 0;
+
+                dict.push({
+                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
+                  "label": text, "strokeColor": p.strokeColor, "timeClicked": timeClicked, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum,
+                  "withinStrokeSplineNum": p.withinStrokeSplineNum, "boutNum": bout, "partBoutNum": partBoutNum
+                });
+                p.strokeWidth = 5;
+              }
+              else if (toRemove == true) {
+                dict.splice(removeLoc, 1);
+                p.strokeColor = ui.item.css("background-color");
+                p.alreadyClicked = true;
+                svgstring = p.exportSVG({ asString: true });
+                var start = svgstring.indexOf('d="') + 3;
+                numLitStrokes = 0;
+                dict.push({
+                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
+                  "label": text, "strokeColor": p.strokeColor, "timeClicked": timeClicked, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum,
+                  "withinStrokeSplineNum": p.withinStrokeSplineNum, "boutNum": bout, "partBoutNum": partBoutNum
+                });
+                p.strokeWidth = 5;
+                numRelabeled++;
+              }
+            });
+
+            bout = bout + 1;
+
+            c = c + selectedArray.length - numRelabeled;
+            //Progress marker updates and checking for whether confetti should fall
+            if (c == pathArray.length) {
+              if (trial.training == false) {
+                totalBonus = totalBonus + 0.02;
+              }
+              for (var i = 0; i < confettiCount; i++) {
+                create(i);
+              }
+            }
+            $(".progress-bar").css("width", (c / pathArray.length) * 100 + '%');
+            $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
+            $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
+
+            if (trial.training == false) {
+              Bonus = Math.round(c * 0.002 * 1000) / 1000;
+              $('#bonusMeter').html("Bonus: $ " + (Bonus + totalBonus).toFixed(3));
+            }
+
+            for (var i = 0; i < pathArray.length; i++) {
+              if (pathArray[i].alreadyClicked == false) {
+                pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
+              }
+            }
+
+            selectedArray = [];
+          }
+
+          else if (text == 'Other') {
+            //Calling free entry box
+            otherColor = ui.item.css("background-color");
+            $("#dialog-form").dialog("open");
+          }
+
+          else if (text == "I can't tell") {
+            var loc = partList.length;
+            var tempBouts = [];
+            var tempMaxBout = 0;
+            var boutCount = 0;
+            var numRelabeled = 0;
+
+            _.forEach(dict, function (p) {
+              if (p.label == "unknown") {
+                tempBouts[boutCount] = p.partBoutNum
+                boutCount++;
+              }
+            })
+
+            tempMaxBout = Math.max.apply(Math, tempBouts)
+
+            partBoutNum = tempMaxBout + 1
+            if (partBoutNum < 0) {
+              partBoutNum = 0
+            }
+            instCountArr[loc] = partBoutNum + 1
+            multi_listgen();
+            $("#List").menu("refresh");
+            $("#InstCount").menu("refresh")
+
+            _.forEach(selectedArray, function (p) {
+              p.highlit = false;
+              p.sendToBack();
+              var toRemove = false
+              var removeLoc
+
+              for (var i = 0; i < dict.length; i++) {
+                if (p.strokeNum == dict[i].cumulativeSplineNum) {
+                  toRemove = true
+                  removeLoc = i
+                }
+              }
+
+              if (toRemove == false) {
+                //Setting stroke color to the color of the menu item
+                p.strokeColor = ui.item.css("background-color");
+                p.alreadyClicked = true;
+                svgstring = p.exportSVG({ asString: true });
+                var start = svgstring.indexOf('d="') + 3;
+                numLitStrokes = 0;
+                dict.push({
+                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
+                  "label": "unknown",
+                  "strokeColor": p.strokeColor,
+                  "timeClicked": timeClicked,
+                  "timeLabeled": Date.now(),
+                  "cumulativeSplineNum": p.strokeNum,
+                  "strokeNum": p.masterStrokeNum,
+                  "withinStrokeSplineNum": p.withinStrokeSplineNum,
+                  "boutNum": bout,
+                  "partBoutNum": partBoutNum
+                });
+                console.log(dict);
+                p.strokeWidth = 5;
+              } else if (toRemove == true) {
+                dict.splice(removeLoc, 1)
+                p.strokeColor = ui.item.css("background-color");
+                p.alreadyClicked = true;
+                svgstring = p.exportSVG({ asString: true });
+                var start = svgstring.indexOf('d="') + 3;
+                numLitStrokes = 0;
+                dict.push({
+                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
+                  "label": "unknown", "strokeColor": p.strokeColor, "timeClicked": timeClicked, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum,
+                  "withinStrokeSplineNum": p.withinStrokeSplineNum, "boutNum": bout, "partBoutNum": partBoutNum
+                });
+                p.strokeWidth = 5;
+                numRelabeled++
+                //selectedArray.splice(selectedArray.indexOf(p),1)
+
+              }
+
+            });
+            bout = bout + 1
+
+            c = c + selectedArray.length - numRelabeled;
+            if (c == pathArray.length) {
+              if (trial.training == false) {
+                totalBonus = totalBonus + 0.02;
+              }
+              for (var i = 0; i < confettiCount; i++) {
+                create(i);
+              }
+            }
+
+            //Progress marker updates and checking for whether confetti should fall
+            $(".progress-bar").css("width", (c / pathArray.length) * 100 + '%');
+            $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
+            $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
+
+            if (trial.training == false) {
+              Bonus = Math.round(c * 0.002 * 1000) / 1000;
+              $('#bonusMeter').html("Bonus: $ " + (Bonus + totalBonus).toFixed(3));
+            }
+
+            for (var i = 0; i < pathArray.length; i++) {
+              if (pathArray[i].alreadyClicked == false) {
+                pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
+              }
+            }
+            selectedArray = [];
+          }
+          //Closing menu after selection
+          $("#List").menu("disable");
+        }
+      });
+
+      comfirmDialog();
+      free_response();
+
       $("#colorCheck").dialog({
         autoOpen: false,
         height: 400,
