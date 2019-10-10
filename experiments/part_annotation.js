@@ -113,7 +113,7 @@ jsPsych.plugins['part_annotation'] = (function () {
 
       console.log("Initialize instCountArr in setTimeOut:", instCountArr)
       multi_listgen();
-      menugen();
+      //menugen();
       display();
     }, 1000);
 
@@ -805,9 +805,9 @@ jsPsych.plugins['part_annotation'] = (function () {
           clickable = true;
           //Refreshing the menu on each click;
 
-          multi_listgen();
-          $("#List").menu("refresh");
-          $("#InstCount").menu("refresh");
+          // multi_listgen();
+          // $("#List").menu("refresh");
+          // $("#InstCount").menu("refresh");
 
           //Retrieving text element of selected option, first level
           var text = ui.item.text();
@@ -849,6 +849,7 @@ jsPsych.plugins['part_annotation'] = (function () {
               var removeLoc;
               p.highlit = false;
               p.sendToBack();
+              console.log(dict);
               for (var i = 0; i < dict.length; i++) {
                 if (p.strokeNum == dict[i].cumulativeSplineNum) {
                   toRemove = true;
@@ -867,8 +868,13 @@ jsPsych.plugins['part_annotation'] = (function () {
 
                 dict.push({
                   "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": text, "strokeColor": p.strokeColor, "timeClicked": timeClicked, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum, "boutNum": bout, "partBoutNum": partBoutNum
+                  "label": text, 
+                  "strokeColor": p.strokeColor, "timeClicked": timeClicked, 
+                  "timeLabeled": Date.now(), 
+                  "cumulativeSplineNum": p.strokeNum, 
+                  "strokeNum": p.masterStrokeNum,
+                  "withinStrokeSplineNum": p.withinStrokeSplineNum, 
+                  "boutNum": bout, "partBoutNum": partBoutNum
                 });
                 p.strokeWidth = 5;
               }
@@ -905,17 +911,20 @@ jsPsych.plugins['part_annotation'] = (function () {
             $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
             $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
 
+            //Increase bonus
             if (trial.training == false) {
               Bonus = Math.round(c * 0.002 * 1000) / 1000;
               $('#bonusMeter').html("Bonus: $ " + (Bonus + totalBonus).toFixed(3));
             }
 
+            //Set remaining strokes' width
             for (var i = 0; i < pathArray.length; i++) {
               if (pathArray[i].alreadyClicked == false) {
                 pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
               }
             }
 
+            //clear the selected Array
             selectedArray = [];
           }
 
