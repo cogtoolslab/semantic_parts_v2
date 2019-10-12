@@ -215,19 +215,21 @@ jsPsych.plugins['part_annotation'] = (function () {
         select: function (event, ui) {
           clickable = true;
           console.log("Clicked Parent Level!");
-          //toogle the next level
-          toggle(li);
+          console.log(curParentLi);
 
           var curId = li.attr('id');
           curParent = curId.split("-").pop();
           curParentLi = li;
-          console.log(curParent);
+
+          //toogle the next level
+          toggle(li);
         }
       });
     }
 
+    /* toggle the children dropdown of li, if it has any */
     function toggle(li) {
-      if (li != null) {
+      if (li != undefined) {
         //Close the dropdown 
         var dropdownContent = li.next();
         var display = dropdownContent.css("display");
@@ -236,202 +238,131 @@ jsPsych.plugins['part_annotation'] = (function () {
         } else {
           dropdownContent.css("display", "block");
         }
-
+      }
+      else {
+        console.log(li, "has no drop down menu");
       }
     }
 
+    function progressBar(numRelabeled) {
+      c = c + selectedArray.length - numRelabeled;
+      //Progress marker updates and checking for whether confetti should fall
+      if (c == pathArray.length) {
+        if (trial.training == false) {
+          totalBonus = totalBonus + 0.02;
+        }
+        for (var i = 0; i < confettiCount; i++) {
+          create(i);
+        }
+      }
+      $(".progress-bar").css("width", (c / pathArray.length) * 100 + '%');
+      $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
+      $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
+    }
+
+    function setRemainWidth() {
+      //Set remaining strokes' width
+      for (var i = 0; i < pathArray.length; i++) {
+        if (pathArray[i].alreadyClicked == false) {
+          pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
+        }
+      }
+    }
+
+    function addSelectArray(curLeaf, color) {
+      var numRelabeled = 0;
+      //Give stroke color and push to dict
+      _.forEach(selectedArray, function (p) {
+        var toRemove = false;
+        var removeLoc;
+        p.highlit = false;
+        p.sendToBack();
+        console.log(dict);
+        //Check if we are re-labeling any
+        for (var i = 0; i < dict.length; i++) {
+          if (p.strokeNum == dict[i].cumulativeSplineNum) {
+            toRemove = true;
+            removeLoc = i;
+          }
+        }
+        //If we are not re-labeling 
+        if (toRemove == false) {
+          // Do not understand TODO
+          p.highlit = false;
+          p.sendToBack();
+
+          var label;
+          if (curParent!=undefined){
+            label = curParent + "-" + curLeaf;
+          }
+          else{
+            label =curLeaf;
+          }
+          pushToDict(p, label, color);
+        }
+        else {
+          //delete the existing stroke in dict
+          dict.splice(removeLoc, 1);
+
+          pushToDict(p, label, color);
+          numRelabeled++;
+        }
+      });
+      return numRelabeled;
+    }
+    /* click behaviors on leaf level click */
     function addLeafClick(li) {
       li.menu({
         //disabled: true,
         select: function (event, ui) {
           clickable = true;
-          console.log("Clicked leaf Level!");
-          var curId = li.attr('id');
-          var curLeaf = curId.split("-").pop();
-          console.log(curLeaf);
+          var curLeaf = li.attr('id').split("-").pop();
+          console.log("Clicked leaf Level!", curLeaf);
 
-          // Label HighLighted Strokes
-          console.log("array of highlit strokes on menu click", selectedArray);
-          _.forEach(selectedArray, function (p) {
-            p.highlit = false;
-            p.sendToBack();
+          /* click on parts */
+          if (curLeaf != "Other") {
+            // update the paper.js sketches
+            var numRelabeled = addSelectArray(curLeaf, li.css("background-color"));
 
-            p.strokeColor = li.css("background-color");
-            p.alreadyClicked = true;
-            svgstring = p.exportSVG({ asString: true });
-            var start = svgstring.indexOf('d="') + 3;
-            numLitStrokes = 0;
+            //Re-initialize parent level
+            curParent = undefined;
+            selectedArray = [];
+            toggle(curParentLi);
 
-            //Added to results
-            dict.push({
-              "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-              "label": curLeaf,
-              "strokeColor": p.strokeColor, "timeClicked": timeClicked,
-              "timeLabeled": Date.now(),
-              "cumulativeSplineNum": p.strokeNum,
-              "strokeNum": p.masterStrokeNum,
-              "withinStrokeSplineNum": p.withinStrokeSplineNum
-
-              //What is boutNum?
-              //"boutNum": bout, "partBoutNum": partBoutNum
-            });
-            p.strokeWidth = 5;
-          });
-          console.log(dict);
-          selectedArray = [];
-
-          toggle(curParent);
-
-          //Set remaining strokes' width
-          for (var i = 0; i < pathArray.length; i++) {
-            if (pathArray[i].alreadyClicked == false) {
-              pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
-            }
+            // progress bar update
+            progressBar(numRelabeled);
+            //remaining strokes update
+            setRemainWidth();
+          }
+          //Calling free entry box
+          else {
+            otherColor = li.css("background-color");
+            $("#dialog-form").dialog("open");
           }
         }
       });
 
-      {
-        /*
-        $("#List").menu({
-          disabled: true,
-          modal: true,
-          select: function (event, ui) {
-            clickable = true;
-            //Refreshing the menu on each click;
-  
-            //Retrieving text element of selected option, first level
-            var text = ui.item.text();
-  
-            if (text != "Other" && text != "I can't tell") {
-              var loc;
-              for (var i = 0; i < Object.keys(trial.parts).length; i++) {
-                if (text == partList[i]) {
-                  loc = i;
-                }
-              }
-              var tempBouts = [];
-              var tempMaxBout = 0;
-              var boutCount = 0;
-              var numRelabeled = 0;
-  
-              _.forEach(dict, function (p) {
-                if (p.label == text) {
-                  tempBouts[boutCount] = p.partBoutNum;
-                  boutCount = boutCount + 1;
-                }
-              });
-              tempMaxBout = Math.max.apply(Math, tempBouts);
-  
-              partBoutNum = tempMaxBout + 1;
-              if (partBoutNum < 0) {
-                partBoutNum = 0;
-              }
-              instCountArr[loc] = partBoutNum + 1;
-              multi_listgen();
-              $("#List").menu("refresh");
-              $("#InstCount").menu("refresh");
-  
-              console.log("array of highlit strokes on menu click", selectedArray)
-  
-              //????
-              _.forEach(selectedArray, function (p) {
-                var toRemove = false;
-                var removeLoc;
-                p.highlit = false;
-                p.sendToBack();
-                console.log(dict);
-                for (var i = 0; i < dict.length; i++) {
-                  if (p.strokeNum == dict[i].cumulativeSplineNum) {
-                    toRemove = true;
-                    removeLoc = i;
-                  }
-                }
-  
-                if (toRemove == false) {
-                  //Setting stroke color to the color of the menu item
-                  p.strokeColor = ui.item.css("background-color");
-                  p.alreadyClicked = true;
-  
-                  svgstring = p.exportSVG({ asString: true });
-                  var start = svgstring.indexOf('d="') + 3;
-                  numLitStrokes = 0;
-  
-                  dict.push({
-                    "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                    "label": text,
-                    "strokeColor": p.strokeColor, "timeClicked": timeClicked,
-                    "timeLabeled": Date.now(),
-                    "cumulativeSplineNum": p.strokeNum,
-                    "strokeNum": p.masterStrokeNum,
-                    "withinStrokeSplineNum": p.withinStrokeSplineNum,
-                    "boutNum": bout, "partBoutNum": partBoutNum
-                  });
-                  p.strokeWidth = 5;
-                }
-                else if (toRemove == true) {
-                  dict.splice(removeLoc, 1);
-                  p.strokeColor = ui.item.css("background-color");
-                  p.alreadyClicked = true;
-                  svgstring = p.exportSVG({ asString: true });
-                  var start = svgstring.indexOf('d="') + 3;
-                  numLitStrokes = 0;
-                  dict.push({
-                    "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                    "label": text,
-                    "strokeColor": p.strokeColor,
-                    "timeClicked": timeClicked,
-                    "timeLabeled": Date.now(),
-                    "cumulativeSplineNum": p.strokeNum,
-                    "strokeNum": p.masterStrokeNum,
-                    "withinStrokeSplineNum": p.withinStrokeSplineNum,
-                    "boutNum": bout, "partBoutNum": partBoutNum
-                  });
-                  
-                  p.strokeWidth = 5;
-                  numRelabeled++;
-                }
-              });
-  
-              bout = bout + 1;
-  
-              c = c + selectedArray.length - numRelabeled;
-              //Progress marker updates and checking for whether confetti should fall
-              if (c == pathArray.length) {
-                if (trial.training == false) {
-                  totalBonus = totalBonus + 0.02;
-                }
-                for (var i = 0; i < confettiCount; i++) {
-                  create(i);
-                }
-              }
-              $(".progress-bar").css("width", (c / pathArray.length) * 100 + '%');
-              $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
-              $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
-  
-              //Increase bonus
-              if (trial.training == false) {
-                Bonus = Math.round(c * 0.002 * 1000) / 1000;
-                $('#bonusMeter').html("Bonus: $ " + (Bonus + totalBonus).toFixed(3));
-              }
-  
-              //Set remaining strokes' width
-              for (var i = 0; i < pathArray.length; i++) {
-                if (pathArray[i].alreadyClicked == false) {
-                  pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
-                }
-              }
-  
-              //clear the selected Array
-              selectedArray = [];
-            }
-          }
-        })
-        */
+      comfirmDialog();
+      free_response();
 
-      }
+      $("#colorCheck").dialog({
+        autoOpen: false,
+        height: 400,
+        width: 350,
+        modal: true,
+        open: function (event, ui) {
+          originalContent = $("#colorCheck").html();
+        },
+        buttons: {
+          "Ok": function () {
+            colorChecked = true;
+            $(this).dialog("close");
+            console.log("colorchecked", colorChecked);
+            ;
+          },
+        }
+      })
     }
-
 
     //Confetti creator for when all strokes are labeled
     function create(i) {
@@ -480,20 +411,7 @@ jsPsych.plugins['part_annotation'] = (function () {
         //Add those strokes not labeled?
         _.forEach(pathArray, function (p) {
           if (p.alreadyClicked == false) {
-            svgstring = p.exportSVG({ asString: true });
-            var start = svgstring.indexOf('d="') + 3;
-            dict.push({
-              "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-              "label": NaN,
-              "strokeColor": p.strokeColor,
-              "timeClicked": NaN,
-              "timeLabeled": Date.now(),
-              "cumulativeSplineNum": p.strokeNum,
-              "strokeNum": p.masterStrokeNum,
-              "withinStrokeSplineNum": p.withinStrokeSplineNum,
-              "boutNum": NaN,
-              "partBoutNum": NaN
-            });
+            pushToDict(p, NaN, p.strokeColor);
           }
         })
 
@@ -800,16 +718,10 @@ jsPsych.plugins['part_annotation'] = (function () {
             var category = trial.category;
             _.forEach(pathArray, function (p) {
               if (p.alreadyClicked == false) {
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": NaN, "strokeColor": p.strokeColor, "timeClicked": NaN, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum, "withinStrokeSplineNum": p.withinStrokeSplineNum,
-                  "boutNum": NaN, "partBoutNum": NaN
-                });
-                console.log(dict);
+                pushToDict(p, NaN, p.strokeColor);
               }
             })
+
             var tempObj = {};
             tempObj[category] = dict;
             tempObj["png"] = dataURL;
@@ -852,11 +764,10 @@ jsPsych.plugins['part_annotation'] = (function () {
                 for (var i = 0; i < dict.length; i++) {
                   if (p.strokeNum == dict[i].cumulativeSplineNum) {
                     console.log(p.strokeNum, dict[i].cumulativeSplineNum)
-                    p.strokeColor = dict[i].strokeColor
-                    p.highlit = false
+                    p.strokeColor = dict[i].strokeColor;
+                    p.highlit = false;
                   }
                 }
-
               }
             })
 
@@ -868,124 +779,23 @@ jsPsych.plugins['part_annotation'] = (function () {
 
           Submit: function (ui) {
             numOthers++;
-            var loc = partList.length + 1;
-
-            var tempBouts = [];
-            var tempMaxBout = 0;
-            var boutCount = 0;
-            var numRelabeled = 0;
-
-            console.log("array of highlit strokes on menu click", selectedArray);
             var UI = $("#partName").val();
             if (UI == "") {
               UI = "unknown";
             }
 
-            _.forEach(dict, function (p) {
-              if (p.label == UI) {
-                //tempdict[boutCount]=p
-                tempBouts[boutCount] = p.partBoutNum;
-                boutCount = boutCount + 1;
-              }
-            })
+            // update the paper.js sketches
+            var numRelabeled = addSelectArray(UI, otherColor);
 
-            tempMaxBout = Math.max.apply(Math, tempBouts)
-
-            partBoutNum = tempMaxBout + 1
-            if (partBoutNum < 0) {
-              partBoutNum = 0
-            }
-            //console.log(partBoutNum)
-            //instCountArr[loc] = numOthers
-            multi_listgen();
-            $("#List").menu("refresh");
-            $("#InstCount").menu("refresh")
-
-
-            _.forEach(selectedArray, function (p) {
-              var toRemove = false
-              var removeLoc
-              p.highlit = false;
-              p.sendToBack();
-              for (var i = 0; i < dict.length; i++) {
-                if (p.strokeNum == dict[i].cumulativeSplineNum) {
-                  toRemove = true
-                  removeLoc = i
-                }
-
-              }
-              if (toRemove == false) {
-
-                //Setting stroke color to the color of the menu item
-                console.log(ui)
-                p.strokeColor = otherColor;
-                p.alreadyClicked = true;
-
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                numLitStrokes = 0;
-
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": UI, "strokeColor": p.strokeColor, "timeClicked": timeClicked, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum, "boutNum": bout, "partBoutNum": partBoutNum
-                });
-
-
-
-
-                //console.log(dict);
-                p.strokeWidth = 5;
-              } else if (toRemove == true) {
-                dict.splice(removeLoc, 1)
-                p.strokeColor = otherColor;
-                p.alreadyClicked = true;
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                numLitStrokes = 0;
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": UI, "strokeColor": p.strokeColor, "timeClicked": timeClicked, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum, "boutNum": bout, "partBoutNum": partBoutNum
-                });
-                p.strokeWidth = 5;
-                numRelabeled++
-                //selectedArray.splice(selectedArray.indexOf(p),1)
-
-              }
-
-            });
-
-            bout = bout + 1
-            console.log(dict)
-
-
-            c = c + selectedArray.length - numRelabeled;
-            //Progress marker updates and checking for whether confetti should fall
-            if (c == pathArray.length) {
-              if (trial.training == false) {
-                totalBonus = totalBonus + 0.02;
-              }
-              for (var i = 0; i < confettiCount; i++) {
-                create(i);
-              }
-            }
-            $(".progress-bar").css("width", (c / pathArray.length) * 100 + '%');
-            $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
-            $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
-
-            if (trial.training == false) {
-              Bonus = Math.round(c * 0.002 * 1000) / 1000;
-              $('#bonusMeter').html("Bonus: $ " + (Bonus + totalBonus).toFixed(3));
-            }
-
-            for (var i = 0; i < pathArray.length; i++) {
-              if (pathArray[i].alreadyClicked == false) {
-                pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
-              }
-            }
-
+            //Re-initialize parent level
+            curParent = undefined;
             selectedArray = [];
+            //toggle(curParentLi);
+
+            // progress bar update
+            progressBar(numRelabeled);
+            //remaining strokes update
+            setRemainWidth();
 
             $(this).dialog("close");
           }
@@ -993,291 +803,31 @@ jsPsych.plugins['part_annotation'] = (function () {
       });
     }
 
-    //Function for creating menu and free response box widgets from the list created by listgen()
-    function menugen() {
-      //disabling enter key submit 
-      $("#dialog-form").submit(function (event) {
-        event.preventDefault();
+    function pushToDict(p, label, color) {
+      if (label != NaN) {
+        p.strokeColor = color;
+        p.alreadyClicked = true;
+      }
+
+      svgstring = p.exportSVG({ asString: true });
+      var start = svgstring.indexOf('d="') + 3;
+      numLitStrokes = 0;
+
+      dict.push({
+        "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
+        "label": label,
+        "strokeColor": p.strokeColor,
+        "timeClicked": timeClicked,
+        "timeLabeled": Date.now(),
+        /* TODO */
+
+        // "cumulativeSplineNum": p.strokeNum,
+        // "strokeNum": p.masterStrokeNum,
+        // "withinStrokeSplineNum": p.withinStrokeSplineNum,
+        // "boutNum": bout,
+        // "partBoutNum": partBoutNum
       });
-      $("#InstCount").menu({
-        disabled: true,
-      });
-
-      $("#List").menu({
-        disabled: true,
-        modal: true,
-        select: function (event, ui) {
-          clickable = true;
-          //Refreshing the menu on each click;
-
-          // multi_listgen();
-          // $("#List").menu("refresh");
-          // $("#InstCount").menu("refresh");
-
-          //Retrieving text element of selected option, first level
-          var text = ui.item.text();
-
-          if (text != "Other" && text != "I can't tell") {
-            var loc;
-            for (var i = 0; i < Object.keys(trial.parts).length; i++) {
-              if (text == partList[i]) {
-                loc = i;
-              }
-            }
-            var tempBouts = [];
-            var tempMaxBout = 0;
-            var boutCount = 0;
-            var numRelabeled = 0;
-
-            _.forEach(dict, function (p) {
-              if (p.label == text) {
-                tempBouts[boutCount] = p.partBoutNum;
-                boutCount = boutCount + 1;
-              }
-            });
-            tempMaxBout = Math.max.apply(Math, tempBouts);
-
-            partBoutNum = tempMaxBout + 1;
-            if (partBoutNum < 0) {
-              partBoutNum = 0;
-            }
-            instCountArr[loc] = partBoutNum + 1;
-            multi_listgen();
-            $("#List").menu("refresh");
-            $("#InstCount").menu("refresh");
-
-            console.log("array of highlit strokes on menu click", selectedArray)
-
-            //????
-            _.forEach(selectedArray, function (p) {
-              var toRemove = false;
-              var removeLoc;
-              p.highlit = false;
-              p.sendToBack();
-              console.log(dict);
-              for (var i = 0; i < dict.length; i++) {
-                if (p.strokeNum == dict[i].cumulativeSplineNum) {
-                  toRemove = true;
-                  removeLoc = i;
-                }
-              }
-
-              if (toRemove == false) {
-                //Setting stroke color to the color of the menu item
-                p.strokeColor = ui.item.css("background-color");
-                p.alreadyClicked = true;
-
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                numLitStrokes = 0;
-
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": text,
-                  "strokeColor": p.strokeColor, "timeClicked": timeClicked,
-                  "timeLabeled": Date.now(),
-                  "cumulativeSplineNum": p.strokeNum,
-                  "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum,
-                  "boutNum": bout, "partBoutNum": partBoutNum
-                });
-                p.strokeWidth = 5;
-              }
-              else if (toRemove == true) {
-                dict.splice(removeLoc, 1);
-                p.strokeColor = ui.item.css("background-color");
-                p.alreadyClicked = true;
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                numLitStrokes = 0;
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": text,
-                  "strokeColor": p.strokeColor,
-                  "timeClicked": timeClicked,
-                  "timeLabeled": Date.now(),
-                  "cumulativeSplineNum": p.strokeNum,
-                  "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum,
-                  "boutNum": bout, "partBoutNum": partBoutNum
-                });
-                p.strokeWidth = 5;
-                numRelabeled++;
-              }
-            });
-
-            bout = bout + 1;
-
-            c = c + selectedArray.length - numRelabeled;
-            //Progress marker updates and checking for whether confetti should fall
-            if (c == pathArray.length) {
-              if (trial.training == false) {
-                totalBonus = totalBonus + 0.02;
-              }
-              for (var i = 0; i < confettiCount; i++) {
-                create(i);
-              }
-            }
-            $(".progress-bar").css("width", (c / pathArray.length) * 100 + '%');
-            $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
-            $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
-
-            //Increase bonus
-            if (trial.training == false) {
-              Bonus = Math.round(c * 0.002 * 1000) / 1000;
-              $('#bonusMeter').html("Bonus: $ " + (Bonus + totalBonus).toFixed(3));
-            }
-
-            //Set remaining strokes' width
-            for (var i = 0; i < pathArray.length; i++) {
-              if (pathArray[i].alreadyClicked == false) {
-                pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
-              }
-            }
-
-            //clear the selected Array
-            selectedArray = [];
-          }
-
-          else if (text == 'Other') {
-            //Calling free entry box
-            otherColor = ui.item.css("background-color");
-            $("#dialog-form").dialog("open");
-          }
-
-          else if (text == "I can't tell") {
-            var loc = partList.length;
-            var tempBouts = [];
-            var tempMaxBout = 0;
-            var boutCount = 0;
-            var numRelabeled = 0;
-
-            _.forEach(dict, function (p) {
-              if (p.label == "unknown") {
-                tempBouts[boutCount] = p.partBoutNum
-                boutCount++;
-              }
-            })
-
-            tempMaxBout = Math.max.apply(Math, tempBouts)
-
-            partBoutNum = tempMaxBout + 1
-            if (partBoutNum < 0) {
-              partBoutNum = 0
-            }
-            instCountArr[loc] = partBoutNum + 1
-            multi_listgen();
-            $("#List").menu("refresh");
-            $("#InstCount").menu("refresh")
-
-            _.forEach(selectedArray, function (p) {
-              p.highlit = false;
-              p.sendToBack();
-              var toRemove = false
-              var removeLoc
-
-              for (var i = 0; i < dict.length; i++) {
-                if (p.strokeNum == dict[i].cumulativeSplineNum) {
-                  toRemove = true
-                  removeLoc = i
-                }
-              }
-
-              if (toRemove == false) {
-                //Setting stroke color to the color of the menu item
-                p.strokeColor = ui.item.css("background-color");
-                p.alreadyClicked = true;
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                numLitStrokes = 0;
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": "unknown",
-                  "strokeColor": p.strokeColor,
-                  "timeClicked": timeClicked,
-                  "timeLabeled": Date.now(),
-                  "cumulativeSplineNum": p.strokeNum,
-                  "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum,
-                  "boutNum": bout,
-                  "partBoutNum": partBoutNum
-                });
-                console.log(dict);
-                p.strokeWidth = 5;
-              } else if (toRemove == true) {
-                dict.splice(removeLoc, 1)
-                p.strokeColor = ui.item.css("background-color");
-                p.alreadyClicked = true;
-                svgstring = p.exportSVG({ asString: true });
-                var start = svgstring.indexOf('d="') + 3;
-                numLitStrokes = 0;
-                dict.push({
-                  "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                  "label": "unknown", "strokeColor": p.strokeColor, "timeClicked": timeClicked, "timeLabeled": Date.now(), "cumulativeSplineNum": p.strokeNum, "strokeNum": p.masterStrokeNum,
-                  "withinStrokeSplineNum": p.withinStrokeSplineNum, "boutNum": bout, "partBoutNum": partBoutNum
-                });
-                p.strokeWidth = 5;
-                numRelabeled++
-                //selectedArray.splice(selectedArray.indexOf(p),1)
-
-              }
-
-            });
-            bout = bout + 1
-
-            c = c + selectedArray.length - numRelabeled;
-            if (c == pathArray.length) {
-              if (trial.training == false) {
-                totalBonus = totalBonus + 0.02;
-              }
-              for (var i = 0; i < confettiCount; i++) {
-                create(i);
-              }
-            }
-
-            //Progress marker updates and checking for whether confetti should fall
-            $(".progress-bar").css("width", (c / pathArray.length) * 100 + '%');
-            $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
-            $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
-
-            if (trial.training == false) {
-              Bonus = Math.round(c * 0.002 * 1000) / 1000;
-              $('#bonusMeter').html("Bonus: $ " + (Bonus + totalBonus).toFixed(3));
-            }
-
-            for (var i = 0; i < pathArray.length; i++) {
-              if (pathArray[i].alreadyClicked == false) {
-                pathArray[i].strokeWidth = Math.max(5, (c / (pathArray.length)) * 13);
-              }
-            }
-            selectedArray = [];
-          }
-          //Closing menu after selection
-          $("#List").menu("disable");
-        }
-      });
-
-      comfirmDialog();
-      free_response();
-
-      $("#colorCheck").dialog({
-        autoOpen: false,
-        height: 400,
-        width: 350,
-        modal: true,
-        open: function (event, ui) {
-          originalContent = $("#colorCheck").html();
-        },
-        buttons: {
-          "Ok": function () {
-            colorChecked = true;
-            $(this).dialog("close");
-            console.log("colorchecked", colorChecked);
-            ;
-          },
-        }
-      })
-
+      p.strokeWidth = 5;
     }
   }
   return plugin;
