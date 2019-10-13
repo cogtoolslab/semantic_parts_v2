@@ -69,8 +69,9 @@ jsPsych.plugins['part_annotation'] = (function () {
       <div class ="wrapper"></div><p id= "bonusMeter" style="font-size:25px;text-align:left; float:left;">Bonus: $ '+ totalBonus.toFixed(3) + '</p>\
       <p id="trialNum"style="text-align:right; font-size:25px"> '+ (trial.trialNum + 1) + " of " + trial.num_trials + '</p><div id="main_container" style="width:1000px;height:600px; margin:auto;"> \
       <div id= "upper_container" style="margin:auto; width:800px">\
-      <div style="float:right; padding-top:43px;left:0px"><ul id="List" style="margin:auto; float:left"></ul>\
+      <div style="float:right; padding-top:43px;left:0px"><div class="list-group" id="List" style="margin:auto; float:left; list-style-type: none;"></div>\
       <div style="float:left; padding-top:0px;left:0px"><ul id="InstCount" style="margin:auto;"></ul></div></div>\
+      </div>\
       <div id="canvas_container" style="width:300px;display:absolute;margin:auto;">\
       <p id="Title" style="color:black;height:10%">'+ trial.category + '</p> \
       <canvas id="myCanvas" style="border: 2px solid #000000; border-radius:10px"  \
@@ -107,15 +108,19 @@ jsPsych.plugins['part_annotation'] = (function () {
       );
 
       paper.setup('myCanvas');
-      partList = trial.parts.toString().split(',');
-
+      // TODO 
+      partList = []
+      _.forEach(Object.keys(trial.parts), function (part) {
+        partList.push(part);
+        _.forEach(trial.parts[part], function (sub_part) {
+          partList.push(sub_part);
+        });
+      });
       //TODO, change this instCountArr so that it tracks of sub_parts as well
       instCountArr = Array.apply(null, Array(partList.length + 2)).map(Number.prototype.valueOf, 0);
 
       console.log("Initialize instCountArr in setTimeOut:", instCountArr)
       multi_listgen();
-      //menugen();
-      //multi_menugen();
       display();
     }, 1000);
 
@@ -170,12 +175,15 @@ jsPsych.plugins['part_annotation'] = (function () {
       for (var i = 0; i < 3; i++) {
         components[i] = Math.round(left[i] + (right[i] - left[i]) * colNo / (partList.length));
       }
+      console.log(components);
       return ('"' + "rgb" + "(" + components[0] + "," + components[1] + "," + components[2] + ")" + '"');
     }
 
     //function for setting the color of the menu items
     function setColor(li) {
+      console.log(li.html());
       li.css("background-color", color_interpolate(left, right, colNo));
+      li.css("cursor", "pointer");
       colNo++;
     };
 
@@ -185,15 +193,16 @@ jsPsych.plugins['part_annotation'] = (function () {
 
       //If we know this first layer has children, give special id dropdown-btn-key
       if (((key in trial.parts)) && trial.parts[key].length != 0) {
-        li = $("<li class='dropdown-btn' id = 'dropdown-btn-" + key + "'> <div>" + key + "<i class='fa fa-caret-down'></i> </div></li>");
+        li = $("<a class='list-group-item list-group-item-action' id = 'dropdown-btn-" + key + "'> <div>" + key + "</div></a>");
         setColor(li);
         li.appendTo("#List");
+
         var wrapper = $("<div class='dropdown-container' id = 'dropdown-container-" + key + "'></div>");
         wrapper.appendTo("#List");
         addParentClick(li);
       }
       else {
-        li = $("<li id = 'leaf-" + key + "'><div>" + key + "</div></li>");
+        li = $("<a class = 'list-group-item list-group-item-action' id = 'leaf-" + key + "'><div>" + key + "</div></a>");
         setColor(li);
         li.appendTo("#List");
         addLeafClick(li);
@@ -201,36 +210,15 @@ jsPsych.plugins['part_annotation'] = (function () {
     }
 
     function create_sub_label(key, sub_part) {
-      var li = $("<li id = 'leaf-" + sub_part + "'><div>" + sub_part + "</div></li>");
+      var li = $("<a class = 'list-group-item list-group-item-action' id = 'leaf-" + sub_part + "'><div>" + sub_part + "</div></a>");
       setColor(li);
       li.appendTo("#dropdown-container-" + key);
       addLeafClick(li);
     }
-
-    // Parent click listener
-    function addParentClick(li) {
-      //Expand the children sub_parts
-      li.menu({
-        //disabled: true,
-        select: function (event, ui) {
-          clickable = true;
-          console.log("Clicked Parent Level!");
-          console.log(curParentLi);
-
-          var curId = li.attr('id');
-          curParent = curId.split("-").pop();
-          curParentLi = li;
-
-          //toogle the next level
-          toggle(li);
-        }
-      });
-    }
-
     /* toggle the children dropdown of li, if it has any */
     function toggle(li) {
       if (li != undefined) {
-        //Close the dropdown 
+        //toggle the dropdown 
         var dropdownContent = li.next();
         var display = dropdownContent.css("display");
         if (display === "block") {
@@ -240,7 +228,7 @@ jsPsych.plugins['part_annotation'] = (function () {
         }
       }
       else {
-        console.log(li, "has no drop down menu");
+        console.log("has no drop down menu");
       }
     }
 
@@ -292,11 +280,11 @@ jsPsych.plugins['part_annotation'] = (function () {
           p.sendToBack();
 
           var label;
-          if (curParent!=undefined){
+          if (curParent != undefined) {
             label = curParent + "-" + curLeaf;
           }
-          else{
-            label =curLeaf;
+          else {
+            label = curLeaf;
           }
           pushToDict(p, label, color);
         }
@@ -310,6 +298,30 @@ jsPsych.plugins['part_annotation'] = (function () {
       });
       return numRelabeled;
     }
+
+    // Parent click listener
+    function addParentClick(li) {
+      //Expand the children sub_parts
+      //add some attribute
+      li.attr("disabled","disabled");
+      li.click(function (event, ui) {
+        console.log("Clicked Parent Level!");
+        console.log(curParent);
+        if (opened){
+          //clear the curParent and curParentLi
+          curParent = undefined;
+          curParent = undefined;
+        }
+        else{
+          curParent = li.attr('id').split("-").pop();
+          curParentLi = li;
+        }
+        //toogle the next level
+        toggle(li);
+      });
+
+    }
+
     /* click behaviors on leaf level click */
     function addLeafClick(li) {
       li.menu({
@@ -325,9 +337,10 @@ jsPsych.plugins['part_annotation'] = (function () {
             var numRelabeled = addSelectArray(curLeaf, li.css("background-color"));
 
             //Re-initialize parent level
-            curParent = undefined;
             selectedArray = [];
             toggle(curParentLi);
+            curParent = undefined;
+            curParentLi = undefined;
 
             // progress bar update
             progressBar(numRelabeled);
@@ -478,7 +491,10 @@ jsPsych.plugins['part_annotation'] = (function () {
               selectedArray[numLitStrokes] = p;
               timeClicked = Date.now();
 
-              $('#List').menu("enable");
+              //Enable all li
+              //li.menu("enable");
+
+
               selectedArray[numLitStrokes].strokeColor = "rgb(200,200,200)";
               numLitStrokes++;
               console.log("array of selected strokes", selectedArray)
@@ -661,7 +677,8 @@ jsPsych.plugins['part_annotation'] = (function () {
 
           if (dragStat == true && selectedArray.length != 0) {
             console.log(timeClicked);
-            $('#List').menu("enable");
+            li.menu("enable");
+
             _.forEach(selectedArray, function (p) {
               p.highlit = true;
               p.strokeColor = "rgb(200,200,200)";
@@ -695,7 +712,7 @@ jsPsych.plugins['part_annotation'] = (function () {
         });
       });
 
-      var extra_labels = ["I can't tell", "Other"];
+      var extra_labels = ["I cannot tell", "Other"];
       _.forEach(extra_labels, function (key) {
         create_label(key);
       });
@@ -818,14 +835,7 @@ jsPsych.plugins['part_annotation'] = (function () {
         "label": label,
         "strokeColor": p.strokeColor,
         "timeClicked": timeClicked,
-        "timeLabeled": Date.now(),
-        /* TODO */
-
-        // "cumulativeSplineNum": p.strokeNum,
-        // "strokeNum": p.masterStrokeNum,
-        // "withinStrokeSplineNum": p.withinStrokeSplineNum,
-        // "boutNum": bout,
-        // "partBoutNum": partBoutNum
+        "timeLabeled": Date.now()
       });
       p.strokeWidth = 5;
     }
