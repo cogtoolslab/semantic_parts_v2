@@ -60,7 +60,7 @@ jsPsych.plugins['part_annotation'] = (function () {
     var left = [237, 56, 8];
     var right = [56, 209, 237];
 
-
+    var opened;
     //Putting function calls and HTML elements of the jsPsych display element within a 1 second timeout
     setTimeout(function () {
       //Setting up HTML for each trial
@@ -303,18 +303,21 @@ jsPsych.plugins['part_annotation'] = (function () {
     function addParentClick(li) {
       //Expand the children sub_parts
       //add some attribute
-      li.attr("disabled","disabled");
+      li.addClass("disabled");
       li.click(function (event, ui) {
         console.log("Clicked Parent Level!");
         console.log(curParent);
-        if (opened){
+
+        //if we are clicking on the same parent
+        if (curParent == li.attr('id').split("-").pop()){
           //clear the curParent and curParentLi
           curParent = undefined;
-          curParent = undefined;
+          curParentLi = undefined;
         }
         else{
           curParent = li.attr('id').split("-").pop();
           curParentLi = li;
+          opened= true;
         }
         //toogle the next level
         toggle(li);
@@ -324,37 +327,34 @@ jsPsych.plugins['part_annotation'] = (function () {
 
     /* click behaviors on leaf level click */
     function addLeafClick(li) {
-      li.menu({
-        //disabled: true,
-        select: function (event, ui) {
-          clickable = true;
-          var curLeaf = li.attr('id').split("-").pop();
-          console.log("Clicked leaf Level!", curLeaf);
+      li.addClass("active");
+      li.click(function (event, ui) {
+        
+        var curLeaf = li.attr('id').split("-").pop();
+        console.log("Clicked leaf Level!", curLeaf);
 
-          /* click on parts */
-          if (curLeaf != "Other") {
-            // update the paper.js sketches
-            var numRelabeled = addSelectArray(curLeaf, li.css("background-color"));
+        /* click on parts */
+        if (curLeaf != "Other") {
+          // update the paper.js sketches
+          var numRelabeled = addSelectArray(curLeaf, li.css("background-color"));
 
-            //Re-initialize parent level
-            selectedArray = [];
-            toggle(curParentLi);
-            curParent = undefined;
-            curParentLi = undefined;
+          //Re-initialize parent level
+          selectedArray = [];
+          //toggle(curParentLi);
+          curParent = undefined;
+          curParentLi = undefined;
 
-            // progress bar update
-            progressBar(numRelabeled);
-            //remaining strokes update
-            setRemainWidth();
-          }
-          //Calling free entry box
-          else {
-            otherColor = li.css("background-color");
-            $("#dialog-form").dialog("open");
-          }
+          // progress bar update
+          progressBar(numRelabeled);
+          //remaining strokes update
+          setRemainWidth();
+        }
+        //Calling free entry box
+        else {
+          otherColor = li.css("background-color");
+          $("#dialog-form").dialog("open");
         }
       });
-
       comfirmDialog();
       free_response();
 
