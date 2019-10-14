@@ -60,7 +60,6 @@ jsPsych.plugins['part_annotation'] = (function () {
     var left = [237, 56, 8];
     var right = [56, 209, 237];
 
-    var opened;
     //Putting function calls and HTML elements of the jsPsych display element within a 1 second timeout
     setTimeout(function () {
       //Setting up HTML for each trial
@@ -116,6 +115,7 @@ jsPsych.plugins['part_annotation'] = (function () {
           partList.push(sub_part);
         });
       });
+      console.log("part array is: ", partList);
       //TODO, change this instCountArr so that it tracks of sub_parts as well
       instCountArr = Array.apply(null, Array(partList.length + 2)).map(Number.prototype.valueOf, 0);
 
@@ -170,7 +170,6 @@ jsPsych.plugins['part_annotation'] = (function () {
 
     //Interpolating between the two values provided to generate colors for label menu
     function color_interpolate(left, right, colNo) {
-      var partList = trial.parts.toString().split(',');
       var components = [];
       for (var i = 0; i < 3; i++) {
         components[i] = Math.round(left[i] + (right[i] - left[i]) * colNo / (partList.length));
@@ -181,7 +180,6 @@ jsPsych.plugins['part_annotation'] = (function () {
 
     //function for setting the color of the menu items
     function setColor(li) {
-      console.log(li.html());
       li.css("background-color", color_interpolate(left, right, colNo));
       li.css("cursor", "pointer");
       colNo++;
@@ -193,7 +191,7 @@ jsPsych.plugins['part_annotation'] = (function () {
 
       //If we know this first layer has children, give special id dropdown-btn-key
       if (((key in trial.parts)) && trial.parts[key].length != 0) {
-        li = $("<a class='list-group-item list-group-item-action' id = 'dropdown-btn-" + key + "'> <div>" + key + "</div></a>");
+        li = $("<a class='list-group-item list-group-item-action disabled' id = 'dropdown-btn-" + key + "'> <div>" + key + "</div></a>");
         setColor(li);
         li.appendTo("#List");
 
@@ -233,6 +231,7 @@ jsPsych.plugins['part_annotation'] = (function () {
     }
 
     function progressBar(numRelabeled) {
+      console.log(selectedArray.length);
       c = c + selectedArray.length - numRelabeled;
       //Progress marker updates and checking for whether confetti should fall
       if (c == pathArray.length) {
@@ -243,6 +242,7 @@ jsPsych.plugins['part_annotation'] = (function () {
           create(i);
         }
       }
+      
       $(".progress-bar").css("width", (c / pathArray.length) * 100 + '%');
       $(".progress-bar").attr('aria-valuenow', (c / pathArray.length) * 100);
       $('.progress-bar').html(c + " out of " + pathArray.length + ' labeled');
@@ -265,7 +265,6 @@ jsPsych.plugins['part_annotation'] = (function () {
         var removeLoc;
         p.highlit = false;
         p.sendToBack();
-        console.log(dict);
         //Check if we are re-labeling any
         for (var i = 0; i < dict.length; i++) {
           if (p.strokeNum == dict[i].cumulativeSplineNum) {
@@ -303,10 +302,10 @@ jsPsych.plugins['part_annotation'] = (function () {
     function addParentClick(li) {
       //Expand the children sub_parts
       //add some attribute
-      li.addClass("disabled");
+      
       li.click(function (event, ui) {
-        console.log("Clicked Parent Level!");
-        console.log(curParent);
+        console.log("Clicked Parent Level!", li.attr('id').split("-").pop());
+        console.log("previous parent is: ", curParent);
 
         //if we are clicking on the same parent
         if (curParent == li.attr('id').split("-").pop()){
@@ -339,13 +338,12 @@ jsPsych.plugins['part_annotation'] = (function () {
           var numRelabeled = addSelectArray(curLeaf, li.css("background-color"));
 
           //Re-initialize parent level
-          selectedArray = [];
-          //toggle(curParentLi);
           curParent = undefined;
           curParentLi = undefined;
 
           // progress bar update
           progressBar(numRelabeled);
+          selectedArray = [];
           //remaining strokes update
           setRemainWidth();
         }
@@ -416,6 +414,11 @@ jsPsych.plugins['part_annotation'] = (function () {
 
     //Behavior of clicking the next button, end_trail got called
     function nextButton_callBack() {
+      console.log(c);
+      console.log(pathArray.length);
+      console.log(trial.training);
+
+      console.log("next button clicked!");
       if (c == pathArray.length && sameColorCheck(pathArray) == false) {
         var dataURL = document.getElementById('myCanvas').toDataURL();
         dataURL = dataURL.replace('data:image/png;base64,', '');
@@ -438,16 +441,16 @@ jsPsych.plugins['part_annotation'] = (function () {
         //resetting canvas and menu elements
         project.activeLayer.removeChildren();
         paper.view.draw();
-        $("#List").menu("destroy");
+        //$("#List").menu("destroy");
         //$("#InstCount").menu("destroy")
         $("#dialog-form").dialog("destroy");
         $("#confirmContinue").dialog("destroy");
 
         end_trial(results);
 
-
         //Opening a confirmation box if all strokes haven't been labeled
       } else if (c == pathArray.length) {
+        console.log("asd");
         colorFlag = true;
         $("#colorCheck").dialog("open");
 
@@ -491,13 +494,10 @@ jsPsych.plugins['part_annotation'] = (function () {
               selectedArray[numLitStrokes] = p;
               timeClicked = Date.now();
 
-              //Enable all li
-              //li.menu("enable");
-
-
+              //Enable all li TODO
+              
               selectedArray[numLitStrokes].strokeColor = "rgb(200,200,200)";
               numLitStrokes++;
-              console.log("array of selected strokes", selectedArray)
             }
 
             //Deselecting a stroke that was accidentally highlighted
@@ -521,7 +521,6 @@ jsPsych.plugins['part_annotation'] = (function () {
                   if (p.strokeNum == selectedArray[i].strokeNum) {
                     selectedArray.splice(i, 1);
                     if (selectedArray.length == 0) {
-                      $('#List').menu("disable");
                     }
                   }
                 }
@@ -544,6 +543,7 @@ jsPsych.plugins['part_annotation'] = (function () {
             }
             //When entering a stroke while not dragging 
             else if (p.highlit == false && dragStat == false) {
+         
               p.strokeColor = "rgb(100,100,100)";
             }
           }
@@ -554,11 +554,13 @@ jsPsych.plugins['part_annotation'] = (function () {
           if (clickable == true) {
             if (p.highlit == false && dragStat == false) {
               if (p.alreadyClicked == false) {
+            
                 p.strokeColor = "rgb(0,0,0)";
               } else if (p.alreadyClicked == true) {
+            
                 for (var i = 0; i < dict.length; i++) {
                   if (p.strokeNum == dict[i].cumulativeSplineNum) {
-                    p.strokeColor = dict[i].strokeColor
+                    p.strokeColor = dict[i].strokeColor;
                   }
                 }
               }
@@ -677,7 +679,6 @@ jsPsych.plugins['part_annotation'] = (function () {
 
           if (dragStat == true && selectedArray.length != 0) {
             console.log(timeClicked);
-            li.menu("enable");
 
             _.forEach(selectedArray, function (p) {
               p.highlit = true;
@@ -789,13 +790,12 @@ jsPsych.plugins['part_annotation'] = (function () {
             })
 
             $("#dialog-form").dialog("close");
-
             numLitStrokes = 0;
             selectedArray = [];
           },
 
           Submit: function (ui) {
-            numOthers++;
+            //numOthers++;
             var UI = $("#partName").val();
             if (UI == "") {
               UI = "unknown";
@@ -806,11 +806,12 @@ jsPsych.plugins['part_annotation'] = (function () {
 
             //Re-initialize parent level
             curParent = undefined;
-            selectedArray = [];
+            
             //toggle(curParentLi);
 
             // progress bar update
             progressBar(numRelabeled);
+            selectedArray = [];
             //remaining strokes update
             setRemainWidth();
 
@@ -829,13 +830,13 @@ jsPsych.plugins['part_annotation'] = (function () {
       svgstring = p.exportSVG({ asString: true });
       var start = svgstring.indexOf('d="') + 3;
       numLitStrokes = 0;
-
       dict.push({
         "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
         "label": label,
         "strokeColor": p.strokeColor,
         "timeClicked": timeClicked,
-        "timeLabeled": Date.now()
+        "timeLabeled": Date.now(),
+        "cumulativeSplineNum" : p.strokeNum
       });
       p.strokeWidth = 5;
     }

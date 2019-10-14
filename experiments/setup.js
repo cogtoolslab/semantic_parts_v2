@@ -74,7 +74,7 @@ function setupExp() {
     trials[1] = comprehensionTrial;
     trials[1].training = true;
 
-    //CHANGE! 
+    //TODO CHANGE! 
     trials[1].svg = data.svgString;
     trials[1].parts = data.parts;
     trials[1].category = data.category;
@@ -123,16 +123,6 @@ function setupExp() {
 
       oldCallback = newCallback;
       var newCallback = function (stim) {
-        // trials[1].svg = data.svgString;
-        // trials[1].parts = data.labels;
-        // trials[1].category = data.category;
-        // trials[1].target_url = data.target_url;
-        // trials[1].gameID = data.gameID;
-        // trials[1].condition = "further";
-        // trials[1].numStrokes = data.numStrokes;
-        // trials[1].outcome = true;
-        // trials[1].orginalTrialNum = data.trialNum;
-        // trials[1].response = data.response;
 
         trial.training = false;
         trial.svg = stim.svg;
