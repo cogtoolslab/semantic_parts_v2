@@ -16,6 +16,7 @@ auth.json
 *.pdf
 *.npy
 *.csv
+*.jpeg
 
 
 # Distribution / packaging
