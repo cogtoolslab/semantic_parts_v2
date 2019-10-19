@@ -844,3 +844,6 @@ jsPsych.plugins['part_annotation'] = (function () {
   return plugin;
 })();
 
+// M, c Start point (x,y), first control point (x, y), second control point (x, y), end point (x, y)
+
+
