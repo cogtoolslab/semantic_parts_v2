@@ -12,20 +12,29 @@ function setupExp() {
   var socket = io.connect();
 
   socket.on('onConnected', function (d) {
-    //var numTrials = d.num_trials;
+
+    //Each user labels 10 sketches
     var numTrials = 10;
+    //trial ID from back-end
     var id = d.id;
 
-    //var renderList = renderList;
-
+    //Basic information for this trial
     var tmp = {
       type: 'part_annotation',
       iterationName: 'pilot0',
       num_trials: numTrials
     };
 
+    //The list of single trials, size = 13
+    //index 0 : four-page instructions
+    //index 1: training from comprehensionStim.json data
+    //Index 2: extra instructions
+    //index 3 - 12: data from server
+    //Index 13: out-of-bound congras?
     var trials = new Array(tmp.num_trials + 3);
 
+
+    //HTML for the instrucitons
     var instructionsHTML = {
       'str1': "<p style = 'font-size:20px;line-height:1.3;'> Welcome! In this HIT you will play a fun game where you will see some sketches and tell us what you see!<p style = 'font-size:20px;line-height:1.3;'>Each sketch was made by somebody who\
       was playing a Pictionary-style game, in which they had to make a sketch of a target object (outlined in red) so that someone else could tell which object in the set \
@@ -48,6 +57,7 @@ function setupExp() {
       'str4': "<p style = 'font-size:30px;line-height:1.3;'> Okay, let's try it out! </p><p style = 'font-size:20px;line-height:1.3;'> On the next screen you will get to practice labeling the parts of a sketch. Click on 'next sketch' when you're done labeling everything.</p>"
     }
 
+    //Into is the object going to be inserted into trials array
     var intro = {
       type: 'instructions',
       pages: [
@@ -60,20 +70,21 @@ function setupExp() {
       show_clickable_nav: true,
       allow_backward: true,
       allow_keys: false
-
     };
+    trials[0] = intro;
 
-
+    //second object going to be inserted into trials array 
     var comprehensionTrial = {
       type: 'part_annotation',
       num_trials: 1,
       on_finish: function (data) {
       }
     }
-
+    //Insert
     trials[1] = comprehensionTrial;
-    trials[1].training = true;
 
+    //Add some attributes
+    trials[1].training = true;
     //TODO CHANGE! 
     trials[1].svg = data.svgString;
     trials[1].parts = data.parts;
@@ -87,6 +98,7 @@ function setupExp() {
     trials[1].response = data.response;
     trials[1].target = data.target;
 
+    // insert more instructions
     trials[2] = {
       type: 'instructions',
       pages: [
@@ -107,9 +119,7 @@ function setupExp() {
       show_clickable_nav: true,
       on_finish: function () { sendData(); }
     };
-
-    trials[0] = intro;
-
+    //insert goodbye?
     trials[tmp.num_trials + 3] = goodbye;
 
     var main_on_finish = function (data) {
@@ -154,9 +164,9 @@ function setupExp() {
 
         jsPsych.resumeExperiment();
       };
+      
       socket.removeListener('stimulus', oldCallback);
       socket.on('stimulus', newCallback);
-
       socket.emit('getStim', { gameID: id });
     };
 
