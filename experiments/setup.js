@@ -122,6 +122,8 @@ function setupExp() {
     //insert goodbye?
     trials[tmp.num_trials + 3] = goodbye;
 
+
+    
     var main_on_finish = function (data) {
       if (data.bonus) {
         score = data.bonus;
@@ -151,20 +153,9 @@ function setupExp() {
         trial.originalTrialNum = stim.trialNum;
         trial.response = stim.response;
 
-        _.forEach(renderList, function (f) {
-          if (f.subordinate == trial.target) {
-            trial.renders[0] = f.url;
-
-          } else if (f.subordinate == trial.Distractor1 || f.subordinate == trial.Distractor2 || f.subordinate == trial.Distractor3) {
-            trial.renders[c] = f.url
-            c++;
-          }
-        });
-
-
         jsPsych.resumeExperiment();
       };
-      
+
       socket.removeListener('stimulus', oldCallback);
       socket.on('stimulus', newCallback);
       socket.emit('getStim', { gameID: id });
