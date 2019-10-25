@@ -688,11 +688,6 @@ jsPsych.plugins['part_annotation'] = (function () {
           dragStat = false;
         }
       }
-
-      //Mouse Leave
-      _.forEach(pathArray, function (p) {
-
-      });
     }
 
     //Generating the list of par labels 
