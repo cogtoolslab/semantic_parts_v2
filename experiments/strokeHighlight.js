@@ -262,11 +262,6 @@ jsPsych.plugins['part_annotation'] = (function () {
         function addLeafClick(li) {
 
             li.click(function () {
-                if (curIndex >= pathArray.length) {
-                    console.log("Finished This Trial!");
-                    return;
-                }
-
                 /* click on parts */
                 if (li.attr('id').split("-").pop() != "Other") {
                     //If user is not clicking under the same parent
@@ -530,10 +525,18 @@ jsPsych.plugins['part_annotation'] = (function () {
         }
 
         function pushToDict(label, color) {
+            if (curIndex == pathArray.length) {
+                alert("You have labelled all strokes! Please click Next Sketch button");
+                return;
+            }
             p = pathArray[curIndex];
             console.log(p);
             //Set color to background color
             p.strokeColor = color;
+
+            if (curParent != undefined) {
+                label = curParent + "-" + label;
+            }
 
             console.log("In push to Dict, label is: ", label);
             svgstring = p.exportSVG({ asString: true });
