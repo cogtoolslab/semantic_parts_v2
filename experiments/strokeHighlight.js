@@ -6,7 +6,6 @@ jsPsych.plugins['part_annotation'] = (function () {
     //intializing drag state checker and array of selected array
     var dragStat = false;
     //initializing array of selected strokes as empty
-    var selectedArray = [];
     var colorChecked = false;
     plugin.info = {
         name: 'part_annotation',
@@ -36,7 +35,7 @@ jsPsych.plugins['part_annotation'] = (function () {
         colorChecked = false;
         var partList;
         var curParent;
-
+        var curParentLi;
         //Setting colors for the menu items ROYGBIV from left to right
         //Setting RGB values to interpolate between 
         var left = [237, 56, 8];
@@ -102,10 +101,29 @@ jsPsych.plugins['part_annotation'] = (function () {
 
         }, 1000);
 
-
-
         //Ending trial and creating trial data to be sent to db. Also resetting HTML elements
-        var end_trial = function (results) {
+        var end_trial = function () {
+            //Add un-labeled strokes to results
+            var dataURL = document.getElementById('myCanvas').toDataURL();
+            dataURL = dataURL.replace('data:image/png;base64,', '');
+            var category = trial.category;
+
+            _.forEach(_.range(curIndex, pathArray.length), function (index) {
+                pushToDict(NaN, NaN);
+            })
+
+            var tempObj = {};
+            tempObj[category] = dict;
+            tempObj["png"] = dataURL;
+            results.push(tempObj);
+            results = JSON.stringify(results)
+
+            //resetting canvas and menu elements
+            project.activeLayer.removeChildren();
+            paper.view.draw();
+
+
+            //End Trial
             var time = Date.now();
             selectedArray = [];
             if (trial.training == false) {
@@ -119,10 +137,10 @@ jsPsych.plugins['part_annotation'] = (function () {
                 aID: turkInfo.assignmentId,
 
                 //TODO, change the db and collection name
-                dbname: 'stimuli',
-                colname: 'semantic_parts_graphical_conventions',
-
+                dbname: 'semantic_parts_v2',
+                colname: 'graphical_conventions_run5',
                 iterationName: 'testing',
+
                 bonus: totalBonus,
                 time: time,
                 numSplines: totalSplines,
@@ -157,7 +175,6 @@ jsPsych.plugins['part_annotation'] = (function () {
         function setColor(li) {
             li.css("background-color", color_interpolate(left, right, colNo));
             li.css("cursor", "pointer");
-            colNo++;
         };
 
         //function to create first-layer label
@@ -225,10 +242,6 @@ jsPsych.plugins['part_annotation'] = (function () {
         // Parent click listener
         function addParentClick(li) {
             li.click(function (event, ui) {
-
-                console.log("Clicked Parent Level!", li.attr('id').split("-").pop());
-                console.log("previous parent is: ", curParent);
-
                 //if we are clicking on the same parent
                 if (curParent == li.attr('id').split("-").pop()) {
                     //clear the curParent and curParentLi
@@ -249,20 +262,31 @@ jsPsych.plugins['part_annotation'] = (function () {
         function addLeafClick(li) {
 
             li.click(function () {
-                console.log(curIndex);
-                console.log(pathArray.length);
-
-                console.log("Clicked leaf Level!", li.attr('id'));
+                if (curIndex >= pathArray.length) {
+                    console.log("Finished This Trial!");
+                    return;
+                }
 
                 /* click on parts */
-                if (li.attr('id') != "Other") {
+                if (li.attr('id').split("-").pop() != "Other") {
+                    //If user is not clicking under the same parent
+                    if (curParentLi != undefined && li.parent().prev().text() != curParentLi.text()) {
+                        toggle(curParentLi);
+                        //Re-initialize parent level
+                        curParent = undefined;
+                        curParentLi = undefined;
+                    }
+
+                    var label;
+                    if (curParent != undefined) {
+                        label = curParent + '-' + li.attr('id').split("-").pop();
+                    }
+                    else {
+                        label = li.attr('id').split("-").pop();
+                    }
+
                     // update the paper.js sketches and push to dict
-                    pushToDict(li.attr('id'), li.css("background-color"));
-
-                    //Re-initialize parent level
-                    curParent = undefined;
-                    curParentLi = undefined;
-
+                    pushToDict(label, li.css("background-color"));
                     // progress bar update
                     progressBar();
                 }
@@ -271,10 +295,10 @@ jsPsych.plugins['part_annotation'] = (function () {
                     otherColor = li.css("background-color");
                     $("#dialog-form").dialog("open");
                 }
-                highlightNextStroke();
+                if (curIndex < pathArray.length){
+                    highlightNextStroke();
+                }
             });
-
-
 
             comfirmDialog();
             free_response();
@@ -291,7 +315,6 @@ jsPsych.plugins['part_annotation'] = (function () {
                     "Ok": function () {
                         colorChecked = true;
                         $(this).dialog("close");
-                        console.log("colorchecked", colorChecked);
                         ;
                     },
                 }
@@ -301,35 +324,8 @@ jsPsych.plugins['part_annotation'] = (function () {
         //Behavior of clicking the next button, end_trail got called
         function nextButton_callBack() {
             console.log("next button clicked!");
-            if (c == pathArray.length && sameColorCheck(pathArray) == false) {
-                var dataURL = document.getElementById('myCanvas').toDataURL();
-                dataURL = dataURL.replace('data:image/png;base64,', '');
-                var category = trial.category;
-
-                //Add those strokes not labeled?
-                _.forEach(pathArray, function (p) {
-                    if (p.alreadyClicked == false) {
-                        pushToDict(p, NaN, p.strokeColor);
-                    }
-                });
-
-                //Adding labeled data (dict) to results
-                //result is an array of tempObjs, two keys, "category: xx" stores 
-                var tempObj = {};
-                tempObj[category] = dict;
-
-                tempObj["png"] = dataURL;
-                results.push(tempObj);
-                results = JSON.stringify(results);
-                //resetting canvas and menu elements
-                project.activeLayer.removeChildren();
-                paper.view.draw();
-                //$("#List").menu("destroy");
-                //$("#InstCount").menu("destroy")
-                $("#dialog-form").dialog("destroy");
-                $("#confirmContinue").dialog("destroy");
-
-                end_trial(results);
+            if (curIndex == pathArray.length && sameColorCheck(pathArray) == false) {
+                end_trial();
 
                 //Opening a confirmation box if all strokes haven't been labeled
             } else if (c == pathArray.length) {
@@ -337,7 +333,7 @@ jsPsych.plugins['part_annotation'] = (function () {
                 colorFlag = true;
                 $("#colorCheck").dialog("open");
 
-            } else if (trial.training == false && c < pathArray.length) {
+            } else if (c < pathArray.length) {
                 $('#confirmContinue').dialog("open")
             }
         }
@@ -463,6 +459,7 @@ jsPsych.plugins['part_annotation'] = (function () {
 
             var keys = Object.keys(trial.parts);
             _.forEach(keys, function (key) {
+                colNo++;
                 create_label(key);
 
                 //Add sub_parts
@@ -473,10 +470,12 @@ jsPsych.plugins['part_annotation'] = (function () {
 
             var extra_labels = ["I cannot tell", "Other"];
             _.forEach(extra_labels, function (key) {
+                colNo++;
                 create_label(key);
             });
         }
 
+        /* Do we want every user label everything? */
         function comfirmDialog() {
             //dialog form for checking if the participant really wants to progress when all strokes not labeled
             $("#confirmContinue").dialog({
@@ -489,28 +488,8 @@ jsPsych.plugins['part_annotation'] = (function () {
                         $("#confirmContinue").dialog("close");
                     },
                     "Continue": function () {
-                        var dataURL = document.getElementById('myCanvas').toDataURL();
-                        dataURL = dataURL.replace('data:image/png;base64,', '');
-                        var category = trial.category;
-                        _.forEach(pathArray, function (p) {
-                            if (p.alreadyClicked == false) {
-                                pushToDict(p, NaN, p.strokeColor);
-                            }
-                        })
 
-                        var tempObj = {};
-                        tempObj[category] = dict;
-                        tempObj["png"] = dataURL;
-                        results.push(tempObj);
-                        results = JSON.stringify(results)
-                        //resetting canvas and menu elements
-                        project.activeLayer.removeChildren();
-                        paper.view.draw();
-                        $("#List").menu("destroy");
-                        //$("#InstCount").menu("destroy")
-                        $("#dialog-form").dialog("destroy");
-                        $("#confirmContinue").dialog("destroy");
-                        end_trial(results);
+                        end_trial();
                     }
                 }
             });
@@ -532,44 +511,17 @@ jsPsych.plugins['part_annotation'] = (function () {
                 buttons:
                 {
                     "Back": function () {
-                        _.forEach(selectedArray, function (p) {
-                            if (p.alreadyClicked == false) {
-                                p.strokeColor = 'rgb(0,0,0)';
-                                p.highlit = false
-                            } else if (p.alreadyClicked == true) {
-                                for (var i = 0; i < dict.length; i++) {
-                                    if (p.strokeNum == dict[i].cumulativeSplineNum) {
-                                        console.log(p.strokeNum, dict[i].cumulativeSplineNum)
-                                        p.strokeColor = dict[i].strokeColor;
-                                        p.highlit = false;
-                                    }
-                                }
-                            }
-                        })
-
                         $("#dialog-form").dialog("close");
-                        numLitStrokes = 0;
-                        selectedArray = [];
                     },
 
-                    Submit: function (ui) {
-                        //numOthers++;
+                    Submit: function () {
                         var UI = $("#partName").val();
                         if (UI == "") {
                             UI = "unknown";
                         }
-
-                        // update the paper.js sketches
-                        var numRelabeled = addSelectArray(UI, otherColor);
-
-                        //Re-initialize parent level
-                        curParent = undefined;
-
-                        //toggle(curParentLi);
-
+                        pushToDict(UI, otherColor);
                         // progress bar update
-                        progressBar(numRelabeled);
-                        selectedArray = [];
+                        progressBar();
 
                         $(this).dialog("close");
                     }
@@ -578,19 +530,12 @@ jsPsych.plugins['part_annotation'] = (function () {
         }
 
         function pushToDict(label, color) {
-            if (curIndex == pathArray.length){
-                alert("You have labelled all strokes! Please click Next Sketch button");
-                return;
-            }
             p = pathArray[curIndex];
+            console.log(p);
             //Set color to background color
             p.strokeColor = color;
-            p.sendToBack();
-            
-            if (curParent != undefined) {
-                label = curParent+ "-" + label;
-            }
 
+            console.log("In push to Dict, label is: ", label);
             svgstring = p.exportSVG({ asString: true });
             var start = svgstring.indexOf('d="') + 3;
             numLitStrokes = 0;
@@ -646,5 +591,3 @@ jsPsych.plugins['part_annotation'] = (function () {
     }
     return plugin;
 })();
-
-// M, c Start point (x,y), first control point (x, y), second control point (x, y), end point (x, y)
