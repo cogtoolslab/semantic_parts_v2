@@ -260,8 +260,10 @@ jsPsych.plugins['part_annotation'] = (function () {
 
         /* click behaviors on leaf level click */
         function addLeafClick(li) {
-
             li.click(function () {
+                if (curIndex >= pathArray.length) {
+                    return;
+                }
                 /* click on parts */
                 if (li.attr('id').split("-").pop() != "Other") {
                     //If user is not clicking under the same parent
@@ -290,7 +292,7 @@ jsPsych.plugins['part_annotation'] = (function () {
                     otherColor = li.css("background-color");
                     $("#dialog-form").dialog("open");
                 }
-                if (curIndex < pathArray.length){
+                if (curIndex < pathArray.length) {
                     highlightNextStroke();
                 }
             });
@@ -372,9 +374,9 @@ jsPsych.plugins['part_annotation'] = (function () {
 
             //Creating the 'next sketch' button
             $("#nextButton").click(nextButton_callBack);
-
+            console.log(trial)
             //----------Displaying the sketch and setting stroke properties--------//
-            var svg = trial.svg;
+            var svg = trial.svgString;
             var numPaths = 0;
             for (var k = 0; k < svg.length; k++) {
                 //converting data to absolute coordinates
@@ -427,13 +429,8 @@ jsPsych.plugins['part_annotation'] = (function () {
                     pathArray[i] = tempPath[i - numPaths];
                     pathArray[i].strokeColor = "rgb(0,0,0)";
                     pathArray[i].strokeWidth = 5;
-                    pathArray[i].masterStrokeNum = k; //Stroke Num
-                    //already clicked tracks if a stroke has been labeled
-                    pathArray[i].alreadyClicked = false;
-                    //highlit tracks whether a stroke is ready to be labeled
-                    pathArray[i].highlit = false;
-                    pathArray[i].strokeNum = i; //spline Num
-                    pathArray[i].withinStrokeSplineNum = i - numPaths; //Spline index within stroke
+                    pathArray[i].splineNum = i; //spline Num
+                    //TODO, DOUBLE CHECK WITH HAOLIANG IF HE WANTS MORE FEATURES FROM SPLINES/STROKES
                 };
 
                 numPaths = numPaths + tempPath.length;
@@ -525,12 +522,8 @@ jsPsych.plugins['part_annotation'] = (function () {
         }
 
         function pushToDict(label, color) {
-            if (curIndex == pathArray.length) {
-                alert("You have labelled all strokes! Please click Next Sketch button");
-                return;
-            }
+
             p = pathArray[curIndex];
-            console.log(p);
             //Set color to background color
             p.strokeColor = color;
 
@@ -542,6 +535,7 @@ jsPsych.plugins['part_annotation'] = (function () {
             svgstring = p.exportSVG({ asString: true });
             var start = svgstring.indexOf('d="') + 3;
             numLitStrokes = 0;
+
             dict.push({
                 //IF HAOLIANG WHANTS MORE FEATURES FOR HIS MODEL, ADD MORE HERE
                 "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
@@ -549,7 +543,7 @@ jsPsych.plugins['part_annotation'] = (function () {
                 "strokeColor": p.strokeColor,
                 "timeClicked": timeClicked,
                 "timeLabeled": Date.now(),
-                "cumulativeSplineNum": p.strokeNum
+                "cumulativeSplineNum": p.splineNum
             });
             p.strokeWidth = 5;
             curIndex++;

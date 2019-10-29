@@ -74,29 +74,15 @@ function setupExp() {
     trials[0] = intro;
 
     //second object going to be inserted into trials array 
-    var comprehensionTrial = {
-      type: 'part_annotation',
-      num_trials: 1,
-      on_finish: function (data) {
-      }
-    }
-    //Insert
-    trials[1] = comprehensionTrial;
+    var comprehensionTrial = data;
+    
+    comprehensionTrial.type = 'part_annotation';
+    comprehensionTrial.num_trials = 1;
 
-    //Add some attributes
+    trials[1] = comprehensionTrial;
     trials[1].training = true;
-    //TODO CHANGE! 
-    trials[1].svg = data.svgString;
-    trials[1].parts = data.parts;
-    trials[1].category = data.category;
-    trials[1].target_url = data.target_url;
-    trials[1].gameID = data.gameID;
-    trials[1].condition = "further";
-    trials[1].numStrokes = data.numStrokes;
     trials[1].outcome = true;
-    trials[1].orginalTrialNum = data.trialNum;
-    trials[1].response = data.response;
-    trials[1].target = data.target;
+
 
     // insert more instructions
     trials[2] = {
@@ -123,7 +109,7 @@ function setupExp() {
     trials[tmp.num_trials + 3] = goodbye;
 
 
-    
+
     var main_on_finish = function (data) {
       if (data.bonus) {
         score = data.bonus;
@@ -134,24 +120,11 @@ function setupExp() {
     var main_on_start = function (trial) {
 
       oldCallback = newCallback;
-      var newCallback = function (stim) {
 
-        trial.training = false;
-        trial.svg = stim.svg;
-        trial.parts = stim.parts;
-        trial.category = stim.category;
-        trial.target = stim.target;
-        //trial.renders = stim.renders;
-        trial.Distractor1 = stim.Distractor1;
-        trial.Distractor2 = stim.Distractor2;
-        trial.Distractor3 = stim.Distractor3;
+      var newCallback = function (stim) {
+        trial = stim;
         trial.renders = [];
-        trial.gameID = stim.gameID;
-        trial.condition = stim.condition;
-        trial.numStrokes = stim.numStrokes;
-        trial.outcome = stim.outcome;
-        trial.originalTrialNum = stim.trialNum;
-        trial.response = stim.response;
+        trial.training = false;
 
         jsPsych.resumeExperiment();
       };
@@ -171,7 +144,6 @@ function setupExp() {
         on_start: main_on_start
       };
     }
-
 
     // start game
     jsPsych.init({
