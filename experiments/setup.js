@@ -123,6 +123,7 @@ function setupExp() {
 
       var newCallback = function (stim) {
         trial = stim;
+        //add more fields
         trial.renders = [];
         trial.training = false;
 

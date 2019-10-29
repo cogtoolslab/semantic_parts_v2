@@ -3,8 +3,6 @@ jsPsych.plugins['part_annotation'] = (function () {
     //totalBonus variable to carry-over bonus amount between trials
     var totalBonus = 0;
     var plugin = {};
-    //intializing drag state checker and array of selected array
-    var dragStat = false;
     //initializing array of selected strokes as empty
     var colorChecked = false;
     plugin.info = {
@@ -36,8 +34,6 @@ jsPsych.plugins['part_annotation'] = (function () {
         var partList;
         var curParent;
         var curParentLi;
-        //Setting colors for the menu items ROYGBIV from left to right
-        //Setting RGB values to interpolate between 
         var left = [237, 56, 8];
         var right = [56, 209, 237];
 
@@ -274,14 +270,8 @@ jsPsych.plugins['part_annotation'] = (function () {
                         curParentLi = undefined;
                     }
 
-                    var label;
-                    if (curParent != undefined) {
-                        label = curParent + '-' + li.attr('id').split("-").pop();
-                    }
-                    else {
-                        label = li.attr('id').split("-").pop();
-                    }
-
+                    var label = li.attr('id').split("-").pop();
+                    
                     // update the paper.js sketches and push to dict
                     pushToDict(label, li.css("background-color"));
                     // progress bar update
@@ -358,13 +348,13 @@ jsPsych.plugins['part_annotation'] = (function () {
             } else { return (false); }
         }
 
-        // Click and Hover event
         function highlightNextStroke() {
             //reset the current stroke color
             pathArray[curIndex].strokeColor = "rgb(0,255,0)";
         }
 
         //------Main Display function for Canvas events------//
+        //TODO, change pathArray to contain strokes instead of splines
         function display() {
             //Hiding bonusmeter and progress marker if its the training trial
             if (trial.training == true) {
@@ -444,10 +434,8 @@ jsPsych.plugins['part_annotation'] = (function () {
         //Generating the list of par labels 
         function multi_listgen() {
             colNo = 0;
-            //instCountInd = 0;
 
             $("#List").empty();
-            //$("#InstCount").empty();
 
             var keys = Object.keys(trial.parts);
             _.forEach(keys, function (key) {
@@ -467,7 +455,8 @@ jsPsych.plugins['part_annotation'] = (function () {
             });
         }
 
-        /* Do we want every user label everything? */
+        //Comfirm if user really wants to continue if they labeled everything in the same color
+        //TODO, if they do not want to proceed, do we let them re-label everything?
         function comfirmDialog() {
             //dialog form for checking if the participant really wants to progress when all strokes not labeled
             $("#confirmContinue").dialog({
@@ -487,6 +476,7 @@ jsPsych.plugins['part_annotation'] = (function () {
             });
         }
 
+        //Open the free_response dialog form when user clicked on "Other"
         function free_response() {
             //Free response dialog box 
             $("#dialog-form").dialog({
@@ -521,34 +511,37 @@ jsPsych.plugins['part_annotation'] = (function () {
             });
         }
 
+        //Push current spline's label into var "dict"
         function pushToDict(label, color) {
-
             p = pathArray[curIndex];
             //Set color to background color
             p.strokeColor = color;
-
+            var parentLabel;
             if (curParent != undefined) {
-                label = curParent + "-" + label;
+                parentLabel = curParent;
             }
-
-            console.log("In push to Dict, label is: ", label);
+            else{
+                parentLabel = label;
+            }
+            console.log("In push to Dict, parent label is: ", parentLabel);
+            console.log("In push to Dict, child label is: ", label);
             svgstring = p.exportSVG({ asString: true });
             var start = svgstring.indexOf('d="') + 3;
             numLitStrokes = 0;
 
             dict.push({
-                //IF HAOLIANG WHANTS MORE FEATURES FOR HIS MODEL, ADD MORE HERE
+                //ADD MORE Spline's FEATURES FOR HIS MODEL TODO
                 "svgString": svgstring.substring(start, svgstring.indexOf('"', start)),
-                "label": label,
                 "strokeColor": p.strokeColor,
                 "timeClicked": timeClicked,
                 "timeLabeled": Date.now(),
-                "cumulativeSplineNum": p.splineNum
+                "cumulativeSplineNum": p.splineNum,
+                "parent": parentLabel,
+                "child" : label
             });
             p.strokeWidth = 5;
             curIndex++;
         }
-
 
         //Confetti creator for when all strokes are labeled
         function create(i) {
