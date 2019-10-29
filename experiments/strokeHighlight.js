@@ -1,4 +1,5 @@
 //Sketch Annotation tool
+
 jsPsych.plugins['part_annotation'] = (function () {
     //totalBonus variable to carry-over bonus amount between trials
     var totalBonus = 0;
@@ -536,8 +537,8 @@ jsPsych.plugins['part_annotation'] = (function () {
                 "timeClicked": timeClicked,
                 "timeLabeled": Date.now(),
                 "cumulativeSplineNum": p.splineNum,
-                "parent": parentLabel,
-                "child" : label
+                "part": parentLabel,
+                "subpart" : label
             });
             p.strokeWidth = 5;
             curIndex++;
